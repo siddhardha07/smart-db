@@ -1,4 +1,4 @@
-import { Database, Plus } from 'lucide-react';
+import { Database, Plus } from "lucide-react";
 
 interface HomePageProps {
   onInsertData: () => void;
@@ -16,9 +16,10 @@ export default function HomePage({ onInsertData }: HomePageProps) {
             SmartDB AI
           </h1>
           <p className="text-xl text-slate-300 max-w-2xl mx-auto mb-12">
-            Create database schemas from Mermaid diagrams and insert data with intelligent automation.
+            Create database schemas from Mermaid diagrams and insert data with
+            intelligent automation.
           </p>
-          
+
           <button
             onClick={onInsertData}
             className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl flex items-center gap-3 transition-colors shadow-lg text-lg font-semibold mx-auto"

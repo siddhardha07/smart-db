@@ -5,9 +5,9 @@ export interface QueryResult {
 
 export interface ChatMessage {
   id: string;
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
   timestamp: Date;
 }
 
-export type AppMode = 'home' | 'insert';
+export type AppMode = "home" | "insert";

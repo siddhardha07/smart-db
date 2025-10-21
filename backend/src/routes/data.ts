@@ -1,6 +1,6 @@
-import { Router, Request, Response } from 'express';
-import { DatabaseConnection } from '../db/dbConnection';
-import { Pool } from 'pg';
+import { Router, Request, Response } from "express";
+import { DatabaseConnection } from "../db/dbConnection";
+import { Pool } from "pg";
 
 const router = Router();
 
@@ -32,11 +32,11 @@ interface ColumnInfo {
  */
 function createDatabasePool(databaseName: string): Pool {
   return new Pool({
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432'),
+    host: process.env.DB_HOST || "localhost",
+    port: parseInt(process.env.DB_PORT || "5432"),
     database: databaseName,
-    user: process.env.DB_USER || 'postgres',
-    password: process.env.DB_PASSWORD || 'password',
+    user: process.env.DB_USER || "postgres",
+    password: process.env.DB_PASSWORD || "password",
     max: 10,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 2000,
@@ -47,25 +47,25 @@ function createDatabasePool(databaseName: string): Pool {
  * POST /api/data/insert
  * Insert JSON data into existing database tables
  */
-router.post('/insert', async (req: Request, res: Response): Promise<void> => {
+router.post("/insert", async (req: Request, res: Response): Promise<void> => {
   let dbPool: Pool | null = null;
-  
+
   try {
     const { database, data } = req.body as InsertDataRequest;
 
     // Validate input
-    if (!database || typeof database !== 'string') {
+    if (!database || typeof database !== "string") {
       res.status(400).json({
         success: false,
-        error: 'Missing or invalid database name'
+        error: "Missing or invalid database name",
       } as InsertDataResponse);
       return;
     }
 
-    if (!data || typeof data !== 'object') {
+    if (!data || typeof data !== "object") {
       res.status(400).json({
         success: false,
-        error: 'Missing or invalid data object'
+        error: "Missing or invalid data object",
       } as InsertDataResponse);
       return;
     }
@@ -75,11 +75,11 @@ router.post('/insert', async (req: Request, res: Response): Promise<void> => {
 
     // Test the connection
     try {
-      await dbPool.query('SELECT 1');
+      await dbPool.query("SELECT 1");
     } catch (error) {
       res.status(400).json({
         success: false,
-        error: `Cannot connect to database "${database}". Please check if the database exists.`
+        error: `Cannot connect to database "${database}". Please check if the database exists.`,
       } as InsertDataResponse);
       return;
     }
@@ -89,7 +89,7 @@ router.post('/insert', async (req: Request, res: Response): Promise<void> => {
       recordsInserted: number;
       errors?: string[];
     }> = [];
-    
+
     let totalInserted = 0;
 
     // Process each table
@@ -98,34 +98,45 @@ router.post('/insert', async (req: Request, res: Response): Promise<void> => {
         details.push({
           table: tableName,
           recordsInserted: 0,
-          errors: ['No records provided or invalid format']
+          errors: ["No records provided or invalid format"],
         });
         continue;
       }
 
       try {
         // Get table columns to validate and order data
-        const columnsResult = await dbPool.query(`
+        const columnsResult = await dbPool.query(
+          `
           SELECT column_name, data_type, is_nullable, column_default
           FROM information_schema.columns
           WHERE table_name = $1 AND table_schema = 'public'
           ORDER BY ordinal_position
-        `, [tableName]);
+        `,
+          [tableName]
+        );
 
         if (columnsResult.rows.length === 0) {
           details.push({
             table: tableName,
             recordsInserted: 0,
-            errors: [`Table "${tableName}" does not exist in database "${database}"`]
+            errors: [
+              `Table "${tableName}" does not exist in database "${database}"`,
+            ],
           });
           continue;
         }
 
-        const columns: ColumnInfo[] = columnsResult.rows.filter((col: ColumnInfo) => 
-          !(col.column_name === 'id' && col.column_default?.includes('nextval'))
+        const columns: ColumnInfo[] = columnsResult.rows.filter(
+          (col: ColumnInfo) =>
+            !(
+              col.column_name === "id" &&
+              col.column_default?.includes("nextval")
+            )
         );
-        
-        const columnNames = columns.map((col: ColumnInfo) => `"${col.column_name}"`);
+
+        const columnNames = columns.map(
+          (col: ColumnInfo) => `"${col.column_name}"`
+        );
         const insertErrors: string[] = [];
         let recordsInserted = 0;
 
@@ -139,9 +150,11 @@ router.post('/insert', async (req: Request, res: Response): Promise<void> => {
             });
 
             // Create parameterized query
-            const placeholders = values.map((_: any, i: number) => `$${i + 1}`).join(', ');
+            const placeholders = values
+              .map((_: any, i: number) => `$${i + 1}`)
+              .join(", ");
             const insertQuery = `
-              INSERT INTO "${tableName}" (${columnNames.join(', ')})
+              INSERT INTO "${tableName}" (${columnNames.join(", ")})
               VALUES (${placeholders})
             `;
 
@@ -149,21 +162,24 @@ router.post('/insert', async (req: Request, res: Response): Promise<void> => {
             recordsInserted++;
             totalInserted++;
           } catch (error) {
-            insertErrors.push(`Record ${index + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            insertErrors.push(
+              `Record ${index + 1}: ${
+                error instanceof Error ? error.message : "Unknown error"
+              }`
+            );
           }
         }
 
         details.push({
           table: tableName,
           recordsInserted,
-          ...(insertErrors.length > 0 && { errors: insertErrors })
+          ...(insertErrors.length > 0 && { errors: insertErrors }),
         });
-
       } catch (error) {
         details.push({
           table: tableName,
           recordsInserted: 0,
-          errors: [error instanceof Error ? error.message : 'Unknown error']
+          errors: [error instanceof Error ? error.message : "Unknown error"],
         });
       }
     }
@@ -171,14 +187,13 @@ router.post('/insert', async (req: Request, res: Response): Promise<void> => {
     res.json({
       success: totalInserted > 0,
       insertedRecords: totalInserted,
-      details
+      details,
     } as InsertDataResponse);
-
   } catch (error) {
-    console.error('Error inserting data:', error);
+    console.error("Error inserting data:", error);
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : 'Internal server error'
+      error: error instanceof Error ? error.message : "Internal server error",
     } as InsertDataResponse);
   } finally {
     // Clean up the database pool

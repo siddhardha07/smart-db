@@ -16,9 +16,7 @@ function App() {
 
   return (
     <>
-      {mode === "home" && (
-        <HomePage onInsertData={handleInsertData} />
-      )}
+      {mode === "home" && <HomePage onInsertData={handleInsertData} />}
       {mode === "insert" && <InsertDataPage onBack={handleBackToHome} />}
     </>
   );

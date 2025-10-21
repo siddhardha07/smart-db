@@ -1,6 +1,6 @@
-import { Database, ChevronRight, Folder, Table } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { getSchemaMetadata } from '../services/apiService';
+import { Database, ChevronRight, Folder, Table } from "lucide-react";
+import { useState, useEffect } from "react";
+import { getSchemaMetadata } from "../services/apiService";
 
 interface DatabaseInfo {
   name: string;
@@ -19,10 +19,15 @@ interface DatabaseExplorerProps {
   selectedDatabase: DatabaseInfo | null;
 }
 
-export default function DatabaseExplorer({ onDatabaseSelect, selectedDatabase }: DatabaseExplorerProps) {
+export default function DatabaseExplorer({
+  onDatabaseSelect,
+  selectedDatabase,
+}: DatabaseExplorerProps) {
   const [databases, setDatabases] = useState<DatabaseInfo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedDatabases, setExpandedDatabases] = useState<Set<string>>(new Set());
+  const [expandedDatabases, setExpandedDatabases] = useState<Set<string>>(
+    new Set()
+  );
 
   useEffect(() => {
     loadDatabases();
@@ -33,18 +38,18 @@ export default function DatabaseExplorer({ onDatabaseSelect, selectedDatabase }:
       setLoading(true);
       // For now, we'll check if smartdb has any tables
       const metadata = await getSchemaMetadata();
-      
+
       if (metadata.success && metadata.metadata.tables.length > 0) {
         const smartdbInfo: DatabaseInfo = {
-          name: 'smartdb',
-          tables: metadata.metadata.tables
+          name: "smartdb",
+          tables: metadata.metadata.tables,
         };
         setDatabases([smartdbInfo]);
       } else {
         setDatabases([]);
       }
     } catch (error) {
-      console.error('Failed to load databases:', error);
+      console.error("Failed to load databases:", error);
       setDatabases([]);
     } finally {
       setLoading(false);
@@ -67,7 +72,7 @@ export default function DatabaseExplorer({ onDatabaseSelect, selectedDatabase }:
     } else {
       onDatabaseSelect(database);
       // Auto-expand when selected
-      setExpandedDatabases(prev => new Set([...prev, database.name]));
+      setExpandedDatabases((prev) => new Set([...prev, database.name]));
     }
   };
 
@@ -91,7 +96,9 @@ export default function DatabaseExplorer({ onDatabaseSelect, selectedDatabase }:
         <div className="text-center py-8">
           <Folder className="w-12 h-12 text-gray-300 mx-auto mb-3" />
           <p className="text-gray-500 text-sm">No databases found</p>
-          <p className="text-gray-400 text-xs mt-1">Create tables to see databases here</p>
+          <p className="text-gray-400 text-xs mt-1">
+            Create tables to see databases here
+          </p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -101,8 +108,8 @@ export default function DatabaseExplorer({ onDatabaseSelect, selectedDatabase }:
               <div
                 className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
                   selectedDatabase?.name === db.name
-                    ? 'bg-blue-50 border border-blue-200'
-                    : 'hover:bg-gray-50'
+                    ? "bg-blue-50 border border-blue-200"
+                    : "hover:bg-gray-50"
                 }`}
                 onClick={() => handleDatabaseSelect(db)}
               >
@@ -115,19 +122,19 @@ export default function DatabaseExplorer({ onDatabaseSelect, selectedDatabase }:
                 >
                   <ChevronRight
                     className={`w-4 h-4 text-gray-500 transition-transform ${
-                      expandedDatabases.has(db.name) ? 'rotate-90' : ''
+                      expandedDatabases.has(db.name) ? "rotate-90" : ""
                     }`}
                   />
                 </button>
-                
+
                 <div className="bg-blue-100 p-2 rounded">
                   <Database className="w-4 h-4 text-blue-600" />
                 </div>
-                
+
                 <div className="flex-1">
                   <p className="font-medium text-gray-900">{db.name}</p>
                   <p className="text-xs text-gray-500">
-                    {db.tables.length} table{db.tables.length !== 1 ? 's' : ''}
+                    {db.tables.length} table{db.tables.length !== 1 ? "s" : ""}
                   </p>
                 </div>
 
@@ -147,7 +154,9 @@ export default function DatabaseExplorer({ onDatabaseSelect, selectedDatabase }:
                       className="flex items-center gap-2 p-2 rounded hover:bg-gray-50"
                     >
                       <Table className="w-3 h-3 text-gray-400" />
-                      <span className="text-sm text-gray-600">{table.name}</span>
+                      <span className="text-sm text-gray-600">
+                        {table.name}
+                      </span>
                       <span className="text-xs text-gray-400">
                         ({table.columns.length} cols)
                       </span>

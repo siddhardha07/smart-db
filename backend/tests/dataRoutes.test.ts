@@ -40,20 +40,33 @@ describe("Data Routes", () => {
       data: {
         users: [
           { name: "John Doe", email: "john@example.com" },
-          { name: "Jane Smith", email: "jane@example.com" }
+          { name: "Jane Smith", email: "jane@example.com" },
         ],
-        products: [
-          { title: "Product 1", price: 99.99, active: true }
-        ]
-      }
+        products: [{ title: "Product 1", price: 99.99, active: true }],
+      },
     };
 
     const mockColumnsResult = {
       rows: [
-        { column_name: "id", data_type: "integer", is_nullable: "NO", column_default: "nextval('users_id_seq'::regclass)" },
-        { column_name: "name", data_type: "character varying", is_nullable: "NO", column_default: null },
-        { column_name: "email", data_type: "character varying", is_nullable: "YES", column_default: null }
-      ]
+        {
+          column_name: "id",
+          data_type: "integer",
+          is_nullable: "NO",
+          column_default: "nextval('users_id_seq'::regclass)",
+        },
+        {
+          column_name: "name",
+          data_type: "character varying",
+          is_nullable: "NO",
+          column_default: null,
+        },
+        {
+          column_name: "email",
+          data_type: "character varying",
+          is_nullable: "YES",
+          column_default: null,
+        },
+      ],
     };
 
     beforeEach(() => {
@@ -68,13 +81,34 @@ describe("Data Routes", () => {
         .mockResolvedValueOnce(mockColumnsResult) // users table columns
         .mockResolvedValueOnce({ rows: [] }) // Insert user 1
         .mockResolvedValueOnce({ rows: [] }) // Insert user 2
-        .mockResolvedValueOnce({ // products table columns
+        .mockResolvedValueOnce({
+          // products table columns
           rows: [
-            { column_name: "id", data_type: "integer", is_nullable: "NO", column_default: "nextval('products_id_seq'::regclass)" },
-            { column_name: "title", data_type: "character varying", is_nullable: "NO", column_default: null },
-            { column_name: "price", data_type: "numeric", is_nullable: "NO", column_default: null },
-            { column_name: "active", data_type: "boolean", is_nullable: "YES", column_default: null }
-          ]
+            {
+              column_name: "id",
+              data_type: "integer",
+              is_nullable: "NO",
+              column_default: "nextval('products_id_seq'::regclass)",
+            },
+            {
+              column_name: "title",
+              data_type: "character varying",
+              is_nullable: "NO",
+              column_default: null,
+            },
+            {
+              column_name: "price",
+              data_type: "numeric",
+              is_nullable: "NO",
+              column_default: null,
+            },
+            {
+              column_name: "active",
+              data_type: "boolean",
+              is_nullable: "YES",
+              column_default: null,
+            },
+          ],
         })
         .mockResolvedValueOnce({ rows: [] }); // Insert product
 
@@ -88,11 +122,11 @@ describe("Data Routes", () => {
       expect(response.body.details).toHaveLength(2);
       expect(response.body.details[0]).toEqual({
         table: "users",
-        recordsInserted: 2
+        recordsInserted: 2,
       });
       expect(response.body.details[1]).toEqual({
         table: "products",
-        recordsInserted: 1
+        recordsInserted: 1,
       });
 
       expect(MockedPool).toHaveBeenCalledWith({
@@ -148,7 +182,7 @@ describe("Data Routes", () => {
       expect(response.status).toBe(400);
       expect(response.body).toEqual({
         success: false,
-        error: "Missing or invalid database name"
+        error: "Missing or invalid database name",
       });
 
       expect(mockPool.end).not.toHaveBeenCalled();
@@ -162,7 +196,7 @@ describe("Data Routes", () => {
       expect(response.status).toBe(400);
       expect(response.body).toEqual({
         success: false,
-        error: "Missing or invalid database name"
+        error: "Missing or invalid database name",
       });
     });
 
@@ -174,7 +208,7 @@ describe("Data Routes", () => {
       expect(response.status).toBe(400);
       expect(response.body).toEqual({
         success: false,
-        error: "Missing or invalid data object"
+        error: "Missing or invalid data object",
       });
     });
 
@@ -186,7 +220,7 @@ describe("Data Routes", () => {
       expect(response.status).toBe(400);
       expect(response.body).toEqual({
         success: false,
-        error: "Missing or invalid data object"
+        error: "Missing or invalid data object",
       });
     });
 
@@ -201,15 +235,15 @@ describe("Data Routes", () => {
       expect(response.status).toBe(400);
       expect(response.body).toEqual({
         success: false,
-        error: 'Cannot connect to database "testdb". Please check if the database exists.'
+        error:
+          'Cannot connect to database "testdb". Please check if the database exists.',
       });
 
       expect(mockPool.end).toHaveBeenCalled();
     });
 
     test("handles empty records array", async () => {
-      mockPool.query
-        .mockResolvedValueOnce({ rows: [{ "?column?": 1 }] }); // Connection test
+      mockPool.query.mockResolvedValueOnce({ rows: [{ "?column?": 1 }] }); // Connection test
 
       const response = await request(app)
         .post("/api/data/insert")
@@ -217,8 +251,8 @@ describe("Data Routes", () => {
           database: "testdb",
           data: {
             users: [],
-            products: "invalid"
-          }
+            products: "invalid",
+          },
         });
 
       expect(response.status).toBe(200);
@@ -229,14 +263,14 @@ describe("Data Routes", () => {
           {
             table: "users",
             recordsInserted: 0,
-            errors: ["No records provided or invalid format"]
+            errors: ["No records provided or invalid format"],
           },
           {
             table: "products",
             recordsInserted: 0,
-            errors: ["No records provided or invalid format"]
-          }
-        ]
+            errors: ["No records provided or invalid format"],
+          },
+        ],
       });
     });
 
@@ -250,8 +284,8 @@ describe("Data Routes", () => {
         .send({
           database: "testdb",
           data: {
-            nonexistent: [{ name: "test" }]
-          }
+            nonexistent: [{ name: "test" }],
+          },
         });
 
       expect(response.status).toBe(200);
@@ -262,9 +296,9 @@ describe("Data Routes", () => {
           {
             table: "nonexistent",
             recordsInserted: 0,
-            errors: ['Table "nonexistent" does not exist in database "testdb"']
-          }
-        ]
+            errors: ['Table "nonexistent" does not exist in database "testdb"'],
+          },
+        ],
       });
     });
 
@@ -282,9 +316,9 @@ describe("Data Routes", () => {
           data: {
             users: [
               { name: "John", email: "john@example.com" },
-              { name: "Jane", email: "john@example.com" } // Duplicate email
-            ]
-          }
+              { name: "Jane", email: "john@example.com" }, // Duplicate email
+            ],
+          },
         });
 
       expect(response.status).toBe(200);
@@ -295,9 +329,9 @@ describe("Data Routes", () => {
           {
             table: "users",
             recordsInserted: 1,
-            errors: ["Record 2: Duplicate key value"]
-          }
-        ]
+            errors: ["Record 2: Duplicate key value"],
+          },
+        ],
       });
     });
 
@@ -311,8 +345,8 @@ describe("Data Routes", () => {
         .send({
           database: "testdb",
           data: {
-            users: [{ name: "test" }]
-          }
+            users: [{ name: "test" }],
+          },
         });
 
       expect(response.status).toBe(200);
@@ -323,9 +357,9 @@ describe("Data Routes", () => {
           {
             table: "users",
             recordsInserted: 0,
-            errors: ["Table query failed"]
-          }
-        ]
+            errors: ["Table query failed"],
+          },
+        ],
       });
     });
 
@@ -340,8 +374,8 @@ describe("Data Routes", () => {
         .send({
           database: "testdb",
           data: {
-            users: [{ name: "test" }]
-          }
+            users: [{ name: "test" }],
+          },
         });
 
       expect(response.status).toBe(200);
@@ -352,9 +386,9 @@ describe("Data Routes", () => {
           {
             table: "users",
             recordsInserted: 0,
-            errors: ["Record 1: Unknown error"]
-          }
-        ]
+            errors: ["Record 1: Unknown error"],
+          },
+        ],
       });
     });
 
@@ -370,8 +404,8 @@ describe("Data Routes", () => {
         .send({
           database: "testdb",
           data: {
-            users: [{ name: "test" }]
-          }
+            users: [{ name: "test" }],
+          },
         });
 
       expect(response.status).toBe(200);
@@ -382,9 +416,9 @@ describe("Data Routes", () => {
           {
             table: "users",
             recordsInserted: 0,
-            errors: ["Unknown error"]
-          }
-        ]
+            errors: ["Unknown error"],
+          },
+        ],
       });
     });
 
@@ -400,7 +434,7 @@ describe("Data Routes", () => {
       expect(response.status).toBe(500);
       expect(response.body).toEqual({
         success: false,
-        error: "Pool creation failed"
+        error: "Pool creation failed",
       });
     });
 
@@ -416,7 +450,7 @@ describe("Data Routes", () => {
       expect(response.status).toBe(500);
       expect(response.body).toEqual({
         success: false,
-        error: "Internal server error"
+        error: "Internal server error",
       });
     });
 
@@ -433,9 +467,9 @@ describe("Data Routes", () => {
           data: {
             users: [
               { name: "John", email: null }, // Explicit null
-              { name: "Jane" } // Missing email (should be null)
-            ]
-          }
+              { name: "Jane" }, // Missing email (should be null)
+            ],
+          },
         });
 
       expect(response.status).toBe(200);
@@ -443,10 +477,10 @@ describe("Data Routes", () => {
       expect(response.body.insertedRecords).toBe(2);
 
       // Verify the insert queries were called with correct parameters
-      const insertCalls = mockPool.query.mock.calls.filter(call => 
-        typeof call[0] === 'string' && call[0].includes('INSERT INTO')
+      const insertCalls = mockPool.query.mock.calls.filter(
+        (call) => typeof call[0] === "string" && call[0].includes("INSERT INTO")
       );
-      
+
       expect(insertCalls).toHaveLength(2);
       expect(insertCalls[0]![1]).toEqual(["John", null]); // name, email
       expect(insertCalls[1]![1]).toEqual(["Jane", null]); // name, email (undefined becomes null)
@@ -463,15 +497,15 @@ describe("Data Routes", () => {
         .send({
           database: "testdb",
           data: {
-            users: [{ id: 999, name: "John", email: "john@example.com" }]
-          }
+            users: [{ id: 999, name: "John", email: "john@example.com" }],
+          },
         });
 
       // Check that the insert query doesn't include the id column
-      const insertCall = mockPool.query.mock.calls.find(call => 
-        typeof call[0] === 'string' && call[0].includes('INSERT INTO')
+      const insertCall = mockPool.query.mock.calls.find(
+        (call) => typeof call[0] === "string" && call[0].includes("INSERT INTO")
       );
-      
+
       expect(insertCall![0]).toContain('"name", "email"');
       expect(insertCall![0]).not.toContain('"id"');
       expect(insertCall![1]).toEqual(["John", "john@example.com"]);
