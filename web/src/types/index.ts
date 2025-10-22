@@ -10,4 +10,13 @@ export interface ChatMessage {
   timestamp: Date;
 }
 
-export type AppMode = "home" | "insert";
+export type AppMode = "home" | "ai" | "db";
+
+// Re-export database types for convenience
+export type {
+  DatabaseInfo,
+  DatabaseCredentials,
+  ConnectionResult,
+  DatabaseSession,
+} from "./database";
+export { LOCAL_DB_ID } from "./database";

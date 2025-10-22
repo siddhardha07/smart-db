@@ -1,25 +1,14 @@
 import request from "supertest";
 import express from "express";
 import dataRouter from "../src/routes/data";
-import { Pool } from "pg";
+import { MultiDatabaseManager } from "../src/db/multiDatabaseManager";
+import { LOCAL_DB_ID } from "../src/types/database";
 
-// Mock the pg module
-const mockClient = {
-  query: jest.fn(),
-  release: jest.fn(),
-};
-
-const mockPool = {
-  query: jest.fn(),
-  end: jest.fn().mockResolvedValue(undefined),
-  connect: jest.fn().mockResolvedValue(mockClient),
-};
-
-jest.mock("pg", () => ({
-  Pool: jest.fn().mockImplementation(() => mockPool),
-}));
-
-const MockedPool = Pool as jest.MockedClass<typeof Pool>;
+// Mock MultiDatabaseManager
+jest.mock("../src/db/multiDatabaseManager");
+const MockedMultiDatabaseManager = MultiDatabaseManager as jest.Mocked<
+  typeof MultiDatabaseManager
+>;
 
 describe("Data Routes", () => {
   let app: express.Application;
@@ -36,7 +25,7 @@ describe("Data Routes", () => {
 
   describe("POST /api/data/insert", () => {
     const validRequest = {
-      database: "testdb",
+      databaseId: LOCAL_DB_ID,
       data: {
         users: [
           { name: "John Doe", email: "john@example.com" },
@@ -75,42 +64,50 @@ describe("Data Routes", () => {
     });
 
     test("successfully inserts data into valid tables", async () => {
+      // Mock connection test
+      MockedMultiDatabaseManager.query.mockResolvedValueOnce({
+        rows: [{ "?column?": 1 }],
+      });
+
       // Mock table columns query for users
-      mockPool.query
-        .mockResolvedValueOnce({ rows: [{ "?column?": 1 }] }) // Connection test
-        .mockResolvedValueOnce(mockColumnsResult) // users table columns
-        .mockResolvedValueOnce({ rows: [] }) // Insert user 1
-        .mockResolvedValueOnce({ rows: [] }) // Insert user 2
-        .mockResolvedValueOnce({
-          // products table columns
-          rows: [
-            {
-              column_name: "id",
-              data_type: "integer",
-              is_nullable: "NO",
-              column_default: "nextval('products_id_seq'::regclass)",
-            },
-            {
-              column_name: "title",
-              data_type: "character varying",
-              is_nullable: "NO",
-              column_default: null,
-            },
-            {
-              column_name: "price",
-              data_type: "numeric",
-              is_nullable: "NO",
-              column_default: null,
-            },
-            {
-              column_name: "active",
-              data_type: "boolean",
-              is_nullable: "YES",
-              column_default: null,
-            },
-          ],
-        })
-        .mockResolvedValueOnce({ rows: [] }); // Insert product
+      MockedMultiDatabaseManager.query.mockResolvedValueOnce(mockColumnsResult);
+
+      // Mock insert queries for users
+      MockedMultiDatabaseManager.query.mockResolvedValueOnce({ rows: [] }); // Insert user 1
+      MockedMultiDatabaseManager.query.mockResolvedValueOnce({ rows: [] }); // Insert user 2
+
+      // Mock table columns query for products
+      MockedMultiDatabaseManager.query.mockResolvedValueOnce({
+        rows: [
+          {
+            column_name: "id",
+            data_type: "integer",
+            is_nullable: "NO",
+            column_default: "nextval('products_id_seq'::regclass)",
+          },
+          {
+            column_name: "title",
+            data_type: "character varying",
+            is_nullable: "NO",
+            column_default: null,
+          },
+          {
+            column_name: "price",
+            data_type: "numeric",
+            is_nullable: "NO",
+            column_default: null,
+          },
+          {
+            column_name: "active",
+            data_type: "boolean",
+            is_nullable: "YES",
+            column_default: null,
+          },
+        ],
+      });
+
+      // Mock insert query for product
+      MockedMultiDatabaseManager.query.mockResolvedValueOnce({ rows: [] });
 
       const response = await request(app)
         .post("/api/data/insert")
@@ -129,52 +126,32 @@ describe("Data Routes", () => {
         recordsInserted: 1,
       });
 
-      expect(MockedPool).toHaveBeenCalledWith({
-        host: "localhost",
-        port: 5432,
-        database: "testdb",
-        user: "postgres",
-        password: "password",
-        max: 10,
-        idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 2000,
-      });
-
-      expect(mockPool.end).toHaveBeenCalled();
+      // Verify MultiDatabaseManager was called correctly
+      expect(MockedMultiDatabaseManager.query).toHaveBeenCalledWith(
+        "SELECT 1",
+        [],
+        LOCAL_DB_ID
+      );
     });
 
-    test("uses environment variables for database connection", async () => {
-      // Set environment variables
-      process.env.DB_HOST = "testhost";
-      process.env.DB_PORT = "5433";
-      process.env.DB_USER = "testuser";
-      process.env.DB_PASSWORD = "testpass";
-
-      mockPool.query.mockResolvedValueOnce({ rows: [{ "?column?": 1 }] });
+    test("uses MultiDatabaseManager for database operations", async () => {
+      // Mock successful connection test
+      MockedMultiDatabaseManager.query.mockResolvedValueOnce({
+        rows: [{ "?column?": 1 }],
+      });
 
       await request(app)
         .post("/api/data/insert")
         .send({ ...validRequest, data: {} });
 
-      expect(MockedPool).toHaveBeenCalledWith({
-        host: "testhost",
-        port: 5433,
-        database: "testdb",
-        user: "testuser",
-        password: "testpass",
-        max: 10,
-        idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 2000,
-      });
-
-      // Clean up environment variables
-      delete process.env.DB_HOST;
-      delete process.env.DB_PORT;
-      delete process.env.DB_USER;
-      delete process.env.DB_PASSWORD;
+      expect(MockedMultiDatabaseManager.query).toHaveBeenCalledWith(
+        "SELECT 1",
+        [],
+        LOCAL_DB_ID
+      );
     });
 
-    test("returns 400 for missing database name", async () => {
+    test("returns 400 for missing database ID", async () => {
       const response = await request(app)
         .post("/api/data/insert")
         .send({ data: validRequest.data });
@@ -182,28 +159,26 @@ describe("Data Routes", () => {
       expect(response.status).toBe(400);
       expect(response.body).toEqual({
         success: false,
-        error: "Missing or invalid database name",
+        error: "Missing or invalid database ID",
       });
-
-      expect(mockPool.end).not.toHaveBeenCalled();
     });
 
-    test("returns 400 for invalid database name type", async () => {
+    test("returns 400 for invalid database ID type", async () => {
       const response = await request(app)
         .post("/api/data/insert")
-        .send({ database: 123, data: validRequest.data });
+        .send({ databaseId: 123, data: validRequest.data });
 
       expect(response.status).toBe(400);
       expect(response.body).toEqual({
         success: false,
-        error: "Missing or invalid database name",
+        error: "Missing or invalid database ID",
       });
     });
 
     test("returns 400 for missing data object", async () => {
       const response = await request(app)
         .post("/api/data/insert")
-        .send({ database: "testdb" });
+        .send({ databaseId: LOCAL_DB_ID });
 
       expect(response.status).toBe(400);
       expect(response.body).toEqual({
@@ -215,7 +190,7 @@ describe("Data Routes", () => {
     test("returns 400 for invalid data object type", async () => {
       const response = await request(app)
         .post("/api/data/insert")
-        .send({ database: "testdb", data: "invalid" });
+        .send({ databaseId: LOCAL_DB_ID, data: "invalid" });
 
       expect(response.status).toBe(400);
       expect(response.body).toEqual({
@@ -225,8 +200,9 @@ describe("Data Routes", () => {
     });
 
     test("returns 400 when cannot connect to database", async () => {
-      mockPool.query.mockReset();
-      mockPool.query.mockRejectedValueOnce(new Error("Connection failed"));
+      MockedMultiDatabaseManager.query.mockRejectedValueOnce(
+        new Error("Connection failed")
+      );
 
       const response = await request(app)
         .post("/api/data/insert")
@@ -235,20 +211,19 @@ describe("Data Routes", () => {
       expect(response.status).toBe(400);
       expect(response.body).toEqual({
         success: false,
-        error:
-          'Cannot connect to database "testdb". Please check if the database exists.',
+        error: `Cannot connect to database with ID "${LOCAL_DB_ID}". Please check the connection.`,
       });
-
-      expect(mockPool.end).toHaveBeenCalled();
     });
 
     test("handles empty records array", async () => {
-      mockPool.query.mockResolvedValueOnce({ rows: [{ "?column?": 1 }] }); // Connection test
+      MockedMultiDatabaseManager.query.mockResolvedValueOnce({
+        rows: [{ "?column?": 1 }],
+      }); // Connection test
 
       const response = await request(app)
         .post("/api/data/insert")
         .send({
-          database: "testdb",
+          databaseId: LOCAL_DB_ID,
           data: {
             users: [],
             products: "invalid",
@@ -275,14 +250,15 @@ describe("Data Routes", () => {
     });
 
     test("handles non-existent table", async () => {
-      mockPool.query
-        .mockResolvedValueOnce({ rows: [{ "?column?": 1 }] }) // Connection test
-        .mockResolvedValueOnce({ rows: [] }); // Empty columns result
+      MockedMultiDatabaseManager.query.mockResolvedValueOnce({
+        rows: [{ "?column?": 1 }],
+      }); // Connection test
+      MockedMultiDatabaseManager.query.mockResolvedValueOnce({ rows: [] }); // Empty columns result
 
       const response = await request(app)
         .post("/api/data/insert")
         .send({
-          database: "testdb",
+          databaseId: LOCAL_DB_ID,
           data: {
             nonexistent: [{ name: "test" }],
           },
@@ -296,23 +272,26 @@ describe("Data Routes", () => {
           {
             table: "nonexistent",
             recordsInserted: 0,
-            errors: ['Table "nonexistent" does not exist in database "testdb"'],
+            errors: ['Table "nonexistent" does not exist in the database'],
           },
         ],
       });
     });
 
     test("handles insert errors for individual records", async () => {
-      mockPool.query
-        .mockResolvedValueOnce({ rows: [{ "?column?": 1 }] }) // Connection test
-        .mockResolvedValueOnce(mockColumnsResult) // Table columns
-        .mockResolvedValueOnce({ rows: [] }) // First insert succeeds
-        .mockRejectedValueOnce(new Error("Duplicate key value")); // Second insert fails
+      MockedMultiDatabaseManager.query.mockResolvedValueOnce({
+        rows: [{ "?column?": 1 }],
+      }); // Connection test
+      MockedMultiDatabaseManager.query.mockResolvedValueOnce(mockColumnsResult); // Table columns
+      MockedMultiDatabaseManager.query.mockResolvedValueOnce({ rows: [] }); // First insert succeeds
+      MockedMultiDatabaseManager.query.mockRejectedValueOnce(
+        new Error("Duplicate key value")
+      ); // Second insert fails
 
       const response = await request(app)
         .post("/api/data/insert")
         .send({
-          database: "testdb",
+          databaseId: LOCAL_DB_ID,
           data: {
             users: [
               { name: "John", email: "john@example.com" },
@@ -336,14 +315,17 @@ describe("Data Routes", () => {
     });
 
     test("handles table query errors", async () => {
-      mockPool.query
-        .mockResolvedValueOnce({ rows: [{ "?column?": 1 }] }) // Connection test
-        .mockRejectedValueOnce(new Error("Table query failed")); // Columns query fails
+      MockedMultiDatabaseManager.query.mockResolvedValueOnce({
+        rows: [{ "?column?": 1 }],
+      }); // Connection test
+      MockedMultiDatabaseManager.query.mockRejectedValueOnce(
+        new Error("Table query failed")
+      ); // Columns query fails
 
       const response = await request(app)
         .post("/api/data/insert")
         .send({
-          database: "testdb",
+          databaseId: LOCAL_DB_ID,
           data: {
             users: [{ name: "test" }],
           },
@@ -364,15 +346,16 @@ describe("Data Routes", () => {
     });
 
     test("handles non-Error exceptions in record insertion", async () => {
-      mockPool.query
-        .mockResolvedValueOnce({ rows: [{ "?column?": 1 }] }) // Connection test
-        .mockResolvedValueOnce(mockColumnsResult) // Table columns
-        .mockRejectedValueOnce("String error"); // Insert fails with non-Error
+      MockedMultiDatabaseManager.query.mockResolvedValueOnce({
+        rows: [{ "?column?": 1 }],
+      }); // Connection test
+      MockedMultiDatabaseManager.query.mockResolvedValueOnce(mockColumnsResult); // Table columns
+      MockedMultiDatabaseManager.query.mockRejectedValueOnce("String error"); // Insert fails with non-Error
 
       const response = await request(app)
         .post("/api/data/insert")
         .send({
-          database: "testdb",
+          databaseId: LOCAL_DB_ID,
           data: {
             users: [{ name: "test" }],
           },
@@ -393,16 +376,17 @@ describe("Data Routes", () => {
     });
 
     test("handles non-Error exceptions in table processing", async () => {
-      mockPool.query
-        .mockResolvedValueOnce({ rows: [{ "?column?": 1 }] }) // Connection test
-        .mockImplementationOnce(() => {
-          throw "String error";
-        });
+      MockedMultiDatabaseManager.query.mockResolvedValueOnce({
+        rows: [{ "?column?": 1 }],
+      }); // Connection test
+      MockedMultiDatabaseManager.query.mockImplementationOnce(() => {
+        throw "String error";
+      });
 
       const response = await request(app)
         .post("/api/data/insert")
         .send({
-          database: "testdb",
+          databaseId: LOCAL_DB_ID,
           data: {
             users: [{ name: "test" }],
           },
@@ -423,8 +407,8 @@ describe("Data Routes", () => {
     });
 
     test("handles unexpected server errors", async () => {
-      MockedPool.mockImplementationOnce(() => {
-        throw new Error("Pool creation failed");
+      MockedMultiDatabaseManager.query.mockImplementationOnce(() => {
+        throw new Error("Unexpected error");
       });
 
       const response = await request(app)
@@ -434,12 +418,12 @@ describe("Data Routes", () => {
       expect(response.status).toBe(500);
       expect(response.body).toEqual({
         success: false,
-        error: "Pool creation failed",
+        error: "Unexpected error",
       });
     });
 
     test("handles non-Error exceptions in server processing", async () => {
-      MockedPool.mockImplementationOnce(() => {
+      MockedMultiDatabaseManager.query.mockImplementationOnce(() => {
         throw "String error";
       });
 
@@ -455,15 +439,17 @@ describe("Data Routes", () => {
     });
 
     test("properly handles null values in records", async () => {
-      mockPool.query
-        .mockResolvedValueOnce({ rows: [{ "?column?": 1 }] }) // Connection test
-        .mockResolvedValueOnce(mockColumnsResult) // Table columns
-        .mockResolvedValueOnce({ rows: [] }); // Insert succeeds
+      MockedMultiDatabaseManager.query.mockResolvedValueOnce({
+        rows: [{ "?column?": 1 }],
+      }); // Connection test
+      MockedMultiDatabaseManager.query.mockResolvedValueOnce(mockColumnsResult); // Table columns
+      MockedMultiDatabaseManager.query.mockResolvedValueOnce({ rows: [] }); // Insert 1
+      MockedMultiDatabaseManager.query.mockResolvedValueOnce({ rows: [] }); // Insert 2
 
       const response = await request(app)
         .post("/api/data/insert")
         .send({
-          database: "testdb",
+          databaseId: LOCAL_DB_ID,
           data: {
             users: [
               { name: "John", email: null }, // Explicit null
@@ -477,8 +463,9 @@ describe("Data Routes", () => {
       expect(response.body.insertedRecords).toBe(2);
 
       // Verify the insert queries were called with correct parameters
-      const insertCalls = mockPool.query.mock.calls.filter(
-        (call) => typeof call[0] === "string" && call[0].includes("INSERT INTO")
+      const insertCalls = MockedMultiDatabaseManager.query.mock.calls.filter(
+        (call: any) =>
+          typeof call[0] === "string" && call[0].includes("INSERT INTO")
       );
 
       expect(insertCalls).toHaveLength(2);
@@ -487,23 +474,25 @@ describe("Data Routes", () => {
     });
 
     test("filters out auto-increment id columns", async () => {
-      mockPool.query
-        .mockResolvedValueOnce({ rows: [{ "?column?": 1 }] }) // Connection test
-        .mockResolvedValueOnce(mockColumnsResult) // Table columns (includes auto-increment id)
-        .mockResolvedValueOnce({ rows: [] }); // Insert
+      MockedMultiDatabaseManager.query.mockResolvedValueOnce({
+        rows: [{ "?column?": 1 }],
+      }); // Connection test
+      MockedMultiDatabaseManager.query.mockResolvedValueOnce(mockColumnsResult); // Table columns (includes auto-increment id)
+      MockedMultiDatabaseManager.query.mockResolvedValueOnce({ rows: [] }); // Insert
 
       await request(app)
         .post("/api/data/insert")
         .send({
-          database: "testdb",
+          databaseId: LOCAL_DB_ID,
           data: {
             users: [{ id: 999, name: "John", email: "john@example.com" }],
           },
         });
 
       // Check that the insert query doesn't include the id column
-      const insertCall = mockPool.query.mock.calls.find(
-        (call) => typeof call[0] === "string" && call[0].includes("INSERT INTO")
+      const insertCall = MockedMultiDatabaseManager.query.mock.calls.find(
+        (call: any) =>
+          typeof call[0] === "string" && call[0].includes("INSERT INTO")
       );
 
       expect(insertCall![0]).toContain('"name", "email"');

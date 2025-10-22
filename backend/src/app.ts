@@ -1,9 +1,12 @@
-import express, { Application, Request, Response } from 'express';
-import cors from 'cors';
-import * as dotenv from 'dotenv';
-import { DatabaseConnection } from './db/dbConnection';
-import schemaRoutes from './routes/schema';
-import dataRoutes from './routes/data';
+import express, { Application, Request, Response } from "express";
+import cors from "cors";
+import * as dotenv from "dotenv";
+import { DatabaseConnection } from "./db/dbConnection";
+import { MultiDatabaseManager } from "./db/multiDatabaseManager";
+import schemaRoutes from "./routes/schema";
+import dataRoutes from "./routes/data";
+import databaseRoutes from "./routes/database-management";
+import queryRoutes from "./routes/query";
 
 // Load environment variables
 dotenv.config();
@@ -14,8 +17,8 @@ class App {
 
   constructor() {
     this.app = express();
-    this.port = parseInt(process.env.PORT || '3001');
-    
+    this.port = parseInt(process.env.PORT || "3001");
+
     this.initializeMiddleware();
     this.initializeRoutes();
     this.initializeDatabase();
@@ -26,19 +29,21 @@ class App {
    */
   private initializeMiddleware(): void {
     // CORS configuration - allow multiple frontend ports
-    this.app.use(cors({
-      origin: [
-        'http://localhost:5173',
-        'http://localhost:5174',
-        'http://localhost:5175',
-        'http://localhost:3000',
-        process.env.FRONTEND_URL || 'http://localhost:5173'
-      ],
-      credentials: true
-    }));
+    this.app.use(
+      cors({
+        origin: [
+          "http://localhost:5173",
+          "http://localhost:5174",
+          "http://localhost:5175",
+          "http://localhost:3000",
+          process.env.FRONTEND_URL || "http://localhost:5173",
+        ],
+        credentials: true,
+      })
+    );
 
     // Body parser middleware
-    this.app.use(express.json({ limit: '10mb' }));
+    this.app.use(express.json({ limit: "10mb" }));
     this.app.use(express.urlencoded({ extended: true }));
 
     // Request logging
@@ -54,30 +59,35 @@ class App {
    */
   private initializeRoutes(): void {
     // Health check endpoint
-    this.app.get('/health', (req: Request, res: Response) => {
+    this.app.get("/health", (req: Request, res: Response) => {
       res.json({
-        status: 'healthy',
+        status: "healthy",
         timestamp: new Date().toISOString(),
-        service: 'SmartDB AI Backend'
+        service: "SmartDB AI Backend",
       });
     });
 
     // API routes
-    this.app.use('/api/schema', schemaRoutes);
-    this.app.use('/api/data', dataRoutes);
+    this.app.use("/api/schema", schemaRoutes);
+    this.app.use("/api/data", dataRoutes);
+    this.app.use("/api", databaseRoutes);
+    this.app.use("/api", queryRoutes);
 
     // Root endpoint
-    this.app.get('/', (req: Request, res: Response) => {
+    this.app.get("/", (req: Request, res: Response) => {
       res.json({
-        message: 'SmartDB AI Backend API',
-        version: '1.0.0',
+        message: "SmartDB AI Backend API",
+        version: "1.0.0",
         endpoints: {
-          health: '/health',
-          schema: '/api/schema',
-          data: '/api/data',
-          createTables: 'POST /api/schema/create-from-mermaid',
-          insertData: 'POST /api/data/insert'
-        }
+          health: "/health",
+          databases: "/api/databases",
+          testConnection: "POST /api/databases/test",
+          addDatabase: "POST /api/databases",
+          schema: "/api/schema",
+          data: "/api/data",
+          createTables: "POST /api/schema/create-from-mermaid",
+          insertData: "POST /api/data/insert",
+        },
       });
     });
 
@@ -85,19 +95,21 @@ class App {
     this.app.use((req: Request, res: Response) => {
       res.status(404).json({
         success: false,
-        error: `Route ${req.originalUrl} not found`
+        error: `Route ${req.originalUrl} not found`,
       });
     });
 
     // Global error handler
     this.app.use((error: Error, req: Request, res: Response, next: any) => {
       // eslint-disable-next-line no-console
-      console.error('Global error handler:', error);
-      
+      console.error("Global error handler:", error);
+
       res.status(500).json({
         success: false,
-        error: 'Internal server error',
-        ...(process.env.NODE_ENV === 'development' && { details: error.message })
+        error: "Internal server error",
+        ...(process.env.NODE_ENV === "development" && {
+          details: error.message,
+        }),
       });
     });
   }
@@ -107,20 +119,33 @@ class App {
    */
   private async initializeDatabase(): Promise<void> {
     try {
+      // Initialize the legacy single database connection
       DatabaseConnection.initialize();
-      
-      // Test the connection
-      const isConnected = await DatabaseConnection.testConnection();
-      if (isConnected) {
+
+      // Initialize the new multi-database manager with local DB
+      MultiDatabaseManager.initializeLocalDatabase();
+
+      // Test both connections
+      const legacyConnected = await DatabaseConnection.testConnection();
+      const localDbAvailable =
+        MultiDatabaseManager.getAvailableDatabases().length > 0;
+
+      if (legacyConnected && localDbAvailable) {
         // eslint-disable-next-line no-console
-        console.log('✅ Database connection established successfully');
+        console.log("✅ Database connections established successfully");
+        // eslint-disable-next-line no-console
+        console.log(
+          `📊 Available databases: ${MultiDatabaseManager.getAvailableDatabases()
+            .map((db) => db.credentials.name)
+            .join(", ")}`
+        );
       } else {
         // eslint-disable-next-line no-console
-        console.error('❌ Database connection failed');
+        console.error("❌ Database connection failed");
       }
     } catch (error) {
       // eslint-disable-next-line no-console
-      console.error('❌ Database initialization error:', error);
+      console.error("❌ Database initialization error:", error);
     }
   }
 
@@ -146,15 +171,16 @@ class App {
    */
   public async shutdown(): Promise<void> {
     // eslint-disable-next-line no-console
-    console.log('🛑 Shutting down server...');
-    
+    console.log("🛑 Shutting down server...");
+
     try {
       await DatabaseConnection.close();
+      await MultiDatabaseManager.closeAllConnections();
       // eslint-disable-next-line no-console
-      console.log('✅ Database connections closed');
+      console.log("✅ Database connections closed");
     } catch (error) {
       // eslint-disable-next-line no-console
-      console.error('❌ Error closing database connections:', error);
+      console.error("❌ Error closing database connections:", error);
     }
   }
 
@@ -170,12 +196,12 @@ class App {
 const app = new App();
 
 // Handle graceful shutdown
-process.on('SIGTERM', async () => {
+process.on("SIGTERM", async () => {
   await app.shutdown();
   process.exit(0);
 });
 
-process.on('SIGINT', async () => {
+process.on("SIGINT", async () => {
   await app.shutdown();
   process.exit(0);
 });
@@ -184,7 +210,7 @@ process.on('SIGINT', async () => {
 if (require.main === module) {
   app.start().catch((error) => {
     // eslint-disable-next-line no-console
-    console.error('Failed to start server:', error);
+    console.error("Failed to start server:", error);
     process.exit(1);
   });
 }
