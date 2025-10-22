@@ -6,6 +6,12 @@ export default defineConfig({
   plugins: [react()],
   optimizeDeps: {
     exclude: ["lucide-react"],
+    include: ["monaco-editor"],
+  },
+  build: {
+    rollupOptions: {
+      external: [],
+    },
   },
   server: {
     proxy: {

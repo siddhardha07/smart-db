@@ -1,96 +1,115 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import HomePage from "../src/pages/HomePage";
-import '@testing-library/jest-dom';
+import "@testing-library/jest-dom";
 
 describe("HomePage", () => {
   it("renders all main elements", () => {
-    const mockOnInsertData = vi.fn();
-    render(<HomePage onInsertData={mockOnInsertData} />);
+    const mockOnAIMode = vi.fn();
+    const mockOnDBMode = vi.fn();
+    render(<HomePage onAIMode={mockOnAIMode} onDBMode={mockOnDBMode} />);
 
     // Check for main title
+    expect(screen.getByText("Welcome to")).toBeInTheDocument();
     expect(screen.getByText("SmartDB AI")).toBeInTheDocument();
 
     // Check for description
     expect(
-      screen.getByText(/Create database schemas from Mermaid diagrams/)
+      screen.getByText(/The intelligent database management platform/)
     ).toBeInTheDocument();
 
-    // Check for Get Started button
-    expect(screen.getByText("Get Started")).toBeInTheDocument();
+    // Check for mode buttons
+    expect(screen.getByText("AI Mode")).toBeInTheDocument();
+    expect(screen.getByText("Database Mode")).toBeInTheDocument();
 
-    // Check for footer text
-    expect(
-      screen.getByText(/Powered by advanced AI technology/)
-    ).toBeInTheDocument();
+    // Check for feature highlights
+    expect(screen.getByText("Lightning Fast")).toBeInTheDocument();
+    expect(screen.getByText("AI-Powered")).toBeInTheDocument();
+    expect(screen.getByText("Multi-Database")).toBeInTheDocument();
   });
 
-  it("calls onInsertData when Get Started button is clicked", () => {
-    const mockOnInsertData = vi.fn();
-    render(<HomePage onInsertData={mockOnInsertData} />);
+  it("calls onAIMode when AI Mode card is clicked", () => {
+    const mockOnAIMode = vi.fn();
+    const mockOnDBMode = vi.fn();
+    render(<HomePage onAIMode={mockOnAIMode} onDBMode={mockOnDBMode} />);
 
-    const getStartedButton = screen.getByText("Get Started");
-    fireEvent.click(getStartedButton);
+    const aiModeCard = screen.getByText("AI Mode").closest("div");
+    fireEvent.click(aiModeCard!);
 
-    expect(mockOnInsertData).toHaveBeenCalledTimes(1);
+    expect(mockOnAIMode).toHaveBeenCalledTimes(1);
+    expect(mockOnDBMode).not.toHaveBeenCalled();
+  });
+
+  it("calls onDBMode when Database Mode card is clicked", () => {
+    const mockOnAIMode = vi.fn();
+    const mockOnDBMode = vi.fn();
+    render(<HomePage onAIMode={mockOnAIMode} onDBMode={mockOnDBMode} />);
+
+    const dbModeCard = screen.getByText("Database Mode").closest("div");
+    fireEvent.click(dbModeCard!);
+
+    expect(mockOnDBMode).toHaveBeenCalledTimes(1);
+    expect(mockOnAIMode).not.toHaveBeenCalled();
   });
 
   it("renders with correct styling classes", () => {
-    const mockOnInsertData = vi.fn();
-    render(<HomePage onInsertData={mockOnInsertData} />);
+    const mockOnAIMode = vi.fn();
+    const mockOnDBMode = vi.fn();
+    render(<HomePage onAIMode={mockOnAIMode} onDBMode={mockOnDBMode} />);
 
-    // Check for main container with gradient background
-    const outerContainer = screen.getByText("SmartDB AI").closest("div")
-      ?.parentElement?.parentElement;
-    expect(outerContainer).toHaveClass("min-h-screen");
-    expect(outerContainer).toHaveClass("bg-gradient-to-br");
+    // Check for welcome section styling
+    const welcomeSection = screen.getByText("Welcome to").closest("div");
+    expect(welcomeSection).toHaveClass("mb-8");
 
-    // Check for button styling
-    const button = screen.getByText("Get Started");
-    expect(button).toHaveClass(
-      "bg-blue-600",
-      "hover:bg-blue-700",
-      "text-white"
-    );
-  });
-
-  it("has accessible button with proper attributes", () => {
-    const mockOnInsertData = vi.fn();
-    render(<HomePage onInsertData={mockOnInsertData} />);
-
-    const button = screen.getByRole("button", { name: "Get Started" });
-    expect(button).toBeInTheDocument();
-    expect(button).toBeEnabled();
+    // Check for AI mode card styling - get the parent div with the cursor-pointer class
+    const aiModeText = screen.getByText("AI Mode");
+    const aiModeCard = aiModeText.closest("div[class*='cursor-pointer']");
+    expect(aiModeCard).toHaveClass("cursor-pointer");
   });
 
   it("renders database icon", () => {
-    const mockOnInsertData = vi.fn();
-    render(<HomePage onInsertData={mockOnInsertData} />);
+    const mockOnAIMode = vi.fn();
+    const mockOnDBMode = vi.fn();
+    render(<HomePage onAIMode={mockOnAIMode} onDBMode={mockOnDBMode} />);
 
     // The Database icon should be present (check for lucide class)
-    const icon = document.querySelector(".lucide-database");
+    const icons = document.querySelectorAll(".lucide-database");
+    expect(icons.length).toBeGreaterThan(0);
+  });
+
+  it("renders brain icon for AI mode", () => {
+    const mockOnAIMode = vi.fn();
+    const mockOnDBMode = vi.fn();
+    render(<HomePage onAIMode={mockOnAIMode} onDBMode={mockOnDBMode} />);
+
+    // The Brain icon should be present in AI mode card
+    const icon = document.querySelector(".lucide-brain");
     expect(icon).toBeInTheDocument();
   });
 
-  it("renders plus icon in button", () => {
-    const mockOnInsertData = vi.fn();
-    render(<HomePage onInsertData={mockOnInsertData} />);
+  it("renders sparkles icon", () => {
+    const mockOnAIMode = vi.fn();
+    const mockOnDBMode = vi.fn();
+    render(<HomePage onAIMode={mockOnAIMode} onDBMode={mockOnDBMode} />);
 
-    // The Plus icon should be present in the button
-    const icon = document.querySelector(".lucide-plus");
+    // The Sparkles icon should be present
+    const icon = document.querySelector(".lucide-sparkles");
     expect(icon).toBeInTheDocument();
   });
 
   it("handles multiple clicks correctly", () => {
-    const mockOnInsertData = vi.fn();
-    render(<HomePage onInsertData={mockOnInsertData} />);
+    const mockOnAIMode = vi.fn();
+    const mockOnDBMode = vi.fn();
+    render(<HomePage onAIMode={mockOnAIMode} onDBMode={mockOnDBMode} />);
 
-    const button = screen.getByText("Get Started");
+    const aiModeCard = screen.getByText("AI Mode").closest("div");
+    const dbModeCard = screen.getByText("Database Mode").closest("div");
 
-    fireEvent.click(button);
-    fireEvent.click(button);
-    fireEvent.click(button);
+    fireEvent.click(aiModeCard!);
+    fireEvent.click(dbModeCard!);
+    fireEvent.click(aiModeCard!);
 
-    expect(mockOnInsertData).toHaveBeenCalledTimes(3);
+    expect(mockOnAIMode).toHaveBeenCalledTimes(2);
+    expect(mockOnDBMode).toHaveBeenCalledTimes(1);
   });
 });

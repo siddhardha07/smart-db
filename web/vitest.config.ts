@@ -4,6 +4,15 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      // Mock Monaco editor for tests
+      "monaco-editor": new URL(
+        "__tests__/mocks/monaco-editor.js",
+        import.meta.url
+      ).pathname,
+    },
+  },
   test: {
     globals: true,
     environment: "jsdom",

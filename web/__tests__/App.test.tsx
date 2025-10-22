@@ -1,62 +1,116 @@
 import "@testing-library/jest-dom";
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import App from "../src/App";
 
 describe("App", () => {
+  beforeEach(() => {
+    // Mock successful database response
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        databases: [
+          { name: "test_db", type: "PostgreSQL" },
+          { name: "sample_db", type: "MySQL" },
+        ],
+      }),
+    });
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("renders HomePage by default", () => {
     render(<App />);
 
-    expect(screen.getByText("SmartDB AI")).toBeInTheDocument();
-    expect(screen.getByText("Get Started")).toBeInTheDocument();
-    expect(
-      screen.getByText(/Create database schemas from Mermaid diagrams/)
-    ).toBeInTheDocument();
+    // Check for the Welcome heading specifically (not the header title)
+    expect(screen.getByText("Welcome to")).toBeInTheDocument();
+    expect(screen.getByText("AI Mode")).toBeInTheDocument();
+    expect(screen.getByText("Database Mode")).toBeInTheDocument();
   });
 
-  it("switches to InsertDataPage when Get Started is clicked", () => {
+  it("switches to AI Mode when AI Mode card is clicked", () => {
     render(<App />);
 
-    const getStartedButton = screen.getByText("Get Started");
-    fireEvent.click(getStartedButton);
+    const aiModeCard = screen.getByText("AI Mode").closest("div");
+    fireEvent.click(aiModeCard!);
 
-    // Should now show InsertDataPage
-    expect(screen.getByText("Insert Data")).toBeInTheDocument();
-    expect(screen.queryByText("SmartDB AI")).not.toBeInTheDocument();
+    // Should now show AIMode page
+    expect(screen.getByText("AI Mode Coming Soon")).toBeInTheDocument();
+    expect(screen.queryByText("Welcome to")).not.toBeInTheDocument();
   });
 
-  it("switches back to HomePage when back button is clicked from InsertDataPage", () => {
+  it("switches to DB Mode when Database Mode card is clicked", () => {
     render(<App />);
 
-    // Navigate to InsertDataPage
-    const getStartedButton = screen.getByText("Get Started");
-    fireEvent.click(getStartedButton);
+    const dbModeCard = screen.getByText("Database Mode").closest("div");
+    fireEvent.click(dbModeCard!);
 
-    // Navigate back to HomePage
-    const backButton = screen.getAllByRole("button")[0];
+    // Should now show DBMode page
+    expect(screen.getByText("Database Console")).toBeInTheDocument();
+    expect(screen.getByTestId("monaco-editor")).toBeInTheDocument();
+    expect(screen.queryByText("Welcome to")).not.toBeInTheDocument();
+  });
+
+  it("switches back to HomePage when back button is clicked from AIMode", () => {
+    render(<App />);
+
+    // Navigate to AIMode
+    const aiModeCard = screen.getByText("AI Mode").closest("div");
+    fireEvent.click(aiModeCard!);
+
+    // Navigate back to HomePage using the back button (ArrowLeft icon button)
+    const backButton = screen.getByRole("button", { name: "" }); // ArrowLeft icon button
     fireEvent.click(backButton);
 
     // Should show HomePage again
-    expect(screen.getByText("SmartDB AI")).toBeInTheDocument();
-    expect(screen.queryByText("Insert Data")).not.toBeInTheDocument();
+    expect(screen.getByText("Welcome to")).toBeInTheDocument();
+    expect(screen.queryByText("AI Mode Coming Soon")).not.toBeInTheDocument();
   });
 
-  it("maintains mode state correctly", () => {
+  it("switches back to HomePage when back button is clicked from DBMode", () => {
     render(<App />);
 
-    // Start at home
+    // Navigate to DBMode
+    const dbModeCard = screen.getByText("Database Mode").closest("div");
+    fireEvent.click(dbModeCard!);
+
+    // Navigate back to HomePage using the back button (ArrowLeft icon button)
+    const backButton = screen.getByRole("button", { name: "" }); // ArrowLeft icon button
+    fireEvent.click(backButton);
+
+    // Should show HomePage again
+    expect(screen.getByText("Welcome to")).toBeInTheDocument();
+    expect(screen.queryByText("Database Console")).not.toBeInTheDocument();
+  });
+
+  it("renders header consistently across all pages", () => {
+    render(<App />);
+
+    // Check header on home page
+    expect(screen.getByRole("banner")).toBeInTheDocument();
+    expect(screen.getAllByText("SmartDB AI")).toHaveLength(2); // Header + HomePage title
+
+    // Switch to AI mode
+    const aiModeCard = screen.getByText("AI Mode").closest("div");
+    fireEvent.click(aiModeCard!);
+
+    // Header should still be there
+    expect(screen.getByRole("banner")).toBeInTheDocument();
     expect(screen.getByText("SmartDB AI")).toBeInTheDocument();
+  });
 
-    // Go to insert
-    fireEvent.click(screen.getByText("Get Started"));
-    expect(screen.getByText("Insert Data")).toBeInTheDocument();
+  it("renders database explorer sidebar in DB mode", async () => {
+    render(<App />);
 
-    // Go back to home
-    fireEvent.click(screen.getAllByRole("button")[0]);
-    expect(screen.getByText("SmartDB AI")).toBeInTheDocument();
+    // Switch to DB Mode
+    const dbModeCard = screen.getByText("Database Mode").closest("div");
+    fireEvent.click(dbModeCard!);
 
-    // Go to insert again
-    fireEvent.click(screen.getByText("Get Started"));
-    expect(screen.getByText("Insert Data")).toBeInTheDocument();
+    // Wait for database loading to complete and check for explorer
+    await waitFor(() => {
+      expect(screen.getByText("Database Explorer")).toBeInTheDocument();
+    });
   });
 });
