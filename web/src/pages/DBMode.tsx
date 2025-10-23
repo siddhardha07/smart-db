@@ -10,6 +10,7 @@ import {
   Type,
   CheckCircle,
   Calendar,
+  Brain,
 } from "lucide-react";
 import { useState, useCallback, useEffect, useRef } from "react";
 import Editor from "@monaco-editor/react";
@@ -19,6 +20,8 @@ import * as monaco from "monaco-editor";
 interface DBModeProps {
   onBack: () => void;
   selectedDatabase: string;
+  initialQuery?: string | null;
+  onNavigateToAIMode?: () => void;
 }
 
 interface QueryResult {
@@ -28,11 +31,44 @@ interface QueryResult {
   executionTime: string;
 }
 
-export default function DBMode({ onBack, selectedDatabase }: DBModeProps) {
+export default function DBMode({
+  onBack,
+  selectedDatabase,
+  initialQuery,
+  onNavigateToAIMode,
+}: DBModeProps) {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
 
-  const [sqlQuery, setSqlQuery] =
-    useState(`-- Welcome to SmartDB AI Database Console
+  // SQL formatter function (same as SQLQueryDisplay component)
+  const formatSQL = (sql: string) => {
+    if (!sql || sql.trim() === "") return sql;
+
+    // Basic SQL formatting - add line breaks for better readability
+    const formatted = sql
+      .replace(/\s+/g, " ") // Normalize whitespace
+      .replace(/,\s*/g, ",\n    ") // New line after commas with indentation
+      .replace(/\bFROM\b/gi, "\nFROM")
+      .replace(/\bWHERE\b/gi, "\nWHERE")
+      .replace(/\bJOIN\b/gi, "\nJOIN")
+      .replace(/\bINNER JOIN\b/gi, "\nINNER JOIN")
+      .replace(/\bLEFT JOIN\b/gi, "\nLEFT JOIN")
+      .replace(/\bRIGHT JOIN\b/gi, "\nRIGHT JOIN")
+      .replace(/\bGROUP BY\b/gi, "\nGROUP BY")
+      .replace(/\bORDER BY\b/gi, "\nORDER BY")
+      .replace(/\bHAVING\b/gi, "\nHAVING")
+      .replace(/\bLIMIT\b/gi, "\nLIMIT")
+      .replace(/\bON\b/gi, "\n    ON")
+      .replace(/\bAND\b/gi, "\n    AND")
+      .replace(/\bOR\b/gi, "\n    OR")
+      .trim();
+
+    return formatted;
+  };
+
+  const [sqlQuery, setSqlQuery] = useState(
+    initialQuery
+      ? formatSQL(initialQuery)
+      : `-- Welcome to SmartDB AI Database Console
 -- Write your SQL queries here and press Ctrl+R or click Run to execute
 
 SELECT 'Hello, SmartDB AI!' as welcome_message;
@@ -40,7 +76,8 @@ SELECT 'Hello, SmartDB AI!' as welcome_message;
 -- Example queries:
 -- SELECT * FROM information_schema.tables;
 -- SHOW TABLES;
--- SELECT version();`);
+-- SELECT version();`
+  );
 
   const [queryResult, setQueryResult] = useState<QueryResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -109,6 +146,17 @@ SELECT 'Hello, SmartDB AI!' as welcome_message;
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [executeQuery]);
+
+  // Auto-execute query when coming from AI mode
+  useEffect(() => {
+    if (initialQuery) {
+      // Small delay to ensure editor is loaded
+      const timer = setTimeout(() => {
+        executeQuery();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [initialQuery, executeQuery]);
 
   const clearEditor = () => {
     setSqlQuery("-- New query\n");
@@ -279,6 +327,17 @@ ORDER BY table_name;`);
 
         {/* Action Buttons */}
         <div className="flex items-center gap-3">
+          {/* AI Mode Button */}
+          {onNavigateToAIMode && (
+            <button
+              onClick={onNavigateToAIMode}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+            >
+              <Brain className="w-4 h-4" />
+              <span>AI Mode</span>
+            </button>
+          )}
+
           <button
             onClick={loadExampleQuery}
             className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors text-sm"

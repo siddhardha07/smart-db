@@ -6,9 +6,23 @@ import { DatabaseExplorer } from "./components/DatabaseExplorerSidebar";
 import { AppMode } from "./types";
 import { LOCAL_DB_ID } from "./types/database";
 
+interface ChatMessage {
+  id: string;
+  type: "user" | "assistant" | "system";
+  content: string;
+  timestamp: Date;
+  query?: string;
+  riskLevel?: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  queryId?: string;
+  confidence?: number;
+  requiresConfirmation?: boolean;
+}
+
 function App() {
   const [mode, setMode] = useState<AppMode>("home");
   const [selectedDatabase] = useState<string>(LOCAL_DB_ID);
+  const [pendingQuery, setPendingQuery] = useState<string | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
 
   const handleAIMode = () => {
     setMode("ai");
@@ -20,6 +34,12 @@ function App() {
 
   const handleBackToHome = () => {
     setMode("home");
+    setPendingQuery(null); // Clear any pending query when going back to home
+  };
+
+  const handleNavigateToDBMode = (query: string) => {
+    setPendingQuery(query);
+    setMode("db");
   };
 
   return (
@@ -45,12 +65,17 @@ function App() {
             <AIMode
               onBack={handleBackToHome}
               selectedDatabase={selectedDatabase}
+              onNavigateToDBMode={handleNavigateToDBMode}
+              chatMessages={chatMessages}
+              setChatMessages={setChatMessages}
             />
           )}
           {mode === "db" && (
             <DBMode
               onBack={handleBackToHome}
               selectedDatabase={selectedDatabase}
+              initialQuery={pendingQuery}
+              onNavigateToAIMode={handleAIMode}
             />
           )}
         </main>

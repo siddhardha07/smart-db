@@ -7,6 +7,7 @@ import schemaRoutes from "./routes/schema";
 import dataRoutes from "./routes/data";
 import databaseRoutes from "./routes/database-management";
 import queryRoutes from "./routes/query";
+import aiRoutes from "./routes/ai";
 
 // Load environment variables
 dotenv.config();
@@ -72,6 +73,7 @@ class App {
     this.app.use("/api/data", dataRoutes);
     this.app.use("/api", databaseRoutes);
     this.app.use("/api", queryRoutes);
+    this.app.use("/api/ai", aiRoutes);
 
     // Root endpoint
     this.app.get("/", (req: Request, res: Response) => {
