@@ -205,4 +205,59 @@ router.get("/databases/:id/schema", async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * Get data from a specific table
+ */
+router.get(
+  "/databases/:id/tables/:tableName/data",
+  async (req: Request, res: Response) => {
+    try {
+      const { id, tableName } = req.params;
+
+      // Validate required parameters
+      if (!tableName) {
+        return res.status(400).json({
+          success: false,
+          message: "Table name is required",
+        });
+      }
+
+      // Security: Validate table name to prevent SQL injection
+      if (!/^[a-zA-Z0-9_]+$/.test(tableName)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid table name",
+        });
+      }
+
+      // WARNING: No limit applied - could cause memory issues with large tables
+      // Get all data from the table
+      const result = await MultiDatabaseManager.query(
+        `SELECT * FROM "${tableName}"`,
+        [],
+        id
+      );
+
+      res.json({
+        success: true,
+        data: {
+          tableName,
+          columns: result.fields
+            ? result.fields.map((field: any) => field.name)
+            : [],
+          rows: result.rows || [],
+          rowCount: result.rowCount || 0,
+          totalRows: result.rowCount || 0,
+        },
+      });
+    } catch (error) {
+      console.error("Error getting table data:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to get table data",
+      });
+    }
+  }
+);
+
 export default router;

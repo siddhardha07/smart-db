@@ -56,13 +56,10 @@ const AIChat: React.FC<AIChatProps> = ({
     setIsLoading(true);
 
     try {
-      console.log("🚀 Starting AI request...");
       const response = await AIService.generateQuery(input.trim());
-      console.log("✅ AI response received:", response);
 
       if (response) {
         if (response.type === "clarification") {
-          console.log("💬 AI provided clarification");
           const aiMessage: ChatMessage = {
             id: (Date.now() + 1).toString(),
             type: "assistant",
@@ -73,8 +70,6 @@ const AIChat: React.FC<AIChatProps> = ({
           };
           setChatMessages((prev) => [...prev, aiMessage]);
         } else if (response.query) {
-          console.log("✅ Query found in response");
-
           const aiMessage: ChatMessage = {
             id: (Date.now() + 1).toString(),
             type: "assistant",
@@ -87,9 +82,7 @@ const AIChat: React.FC<AIChatProps> = ({
           };
 
           setChatMessages((prev) => [...prev, aiMessage]);
-          console.log("✅ Message added to chat");
         } else {
-          console.log("❌ No query in response");
           const errorMessage: ChatMessage = {
             id: (Date.now() + 1).toString(),
             type: "assistant",
@@ -100,7 +93,6 @@ const AIChat: React.FC<AIChatProps> = ({
           setChatMessages((prev) => [...prev, errorMessage]);
         }
       } else {
-        console.log("❌ No response from AI");
         const errorMessage: ChatMessage = {
           id: (Date.now() + 1).toString(),
           type: "assistant",

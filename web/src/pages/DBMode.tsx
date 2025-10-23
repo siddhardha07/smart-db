@@ -11,6 +11,7 @@ import {
   CheckCircle,
   Calendar,
   Brain,
+  ChevronDown,
 } from "lucide-react";
 import { useState, useCallback, useEffect, useRef } from "react";
 import Editor from "@monaco-editor/react";
@@ -84,6 +85,8 @@ SELECT 'Hello, SmartDB AI!' as welcome_message;
   const [error, setError] = useState<string>("");
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const exportRef = useRef<HTMLDivElement>(null);
 
   const executeQuery = useCallback(async () => {
     let queryToExecute = sqlQuery.trim();
@@ -164,6 +167,114 @@ SELECT 'Hello, SmartDB AI!' as welcome_message;
       editorRef.current.focus();
     }
   };
+
+  const exportAsCSV = () => {
+    if (!queryResult) return;
+
+    const headers = queryResult.columns.join(",");
+    const rows = queryResult.rows
+      .map((row: Record<string, string | number | boolean | null>) =>
+        queryResult.columns
+          .map((col: string) => {
+            const value = row[col];
+            if (
+              typeof value === "string" &&
+              (value.includes(",") || value.includes('"'))
+            ) {
+              return `"${value.replace(/"/g, '""')}"`;
+            }
+            return value ?? "";
+          })
+          .join(",")
+      )
+      .join("\n");
+
+    const csv = `${headers}\n${rows}`;
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `query_results.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportAsJSON = () => {
+    if (!queryResult) return;
+
+    const jsonData = {
+      query: sqlQuery,
+      columns: queryResult.columns,
+      rows: queryResult.rows,
+      rowCount: queryResult.rowCount,
+      executionTime: queryResult.executionTime,
+      exportedAt: new Date().toISOString(),
+    };
+
+    const blob = new Blob([JSON.stringify(jsonData, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `query_results.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportAsXLSX = () => {
+    if (!queryResult) return;
+
+    const worksheetData = [
+      queryResult.columns,
+      ...queryResult.rows.map(
+        (row: Record<string, string | number | boolean | null>) =>
+          queryResult.columns.map((col: string) => row[col] ?? "")
+      ),
+    ];
+
+    const tsvContent = worksheetData.map((row) => row.join("\t")).join("\n");
+
+    const blob = new Blob([tsvContent], { type: "application/vnd.ms-excel" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `query_results.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportFormat = (format: "csv" | "json" | "xlsx") => {
+    switch (format) {
+      case "csv":
+        exportAsCSV();
+        break;
+      case "json":
+        exportAsJSON();
+        break;
+      case "xlsx":
+        exportAsXLSX();
+        break;
+    }
+    setShowExportMenu(false);
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        exportRef.current &&
+        !exportRef.current.contains(event.target as Node)
+      ) {
+        setShowExportMenu(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   const getDataTypeIcon = (
     value: string | number | boolean | null | undefined
@@ -436,10 +547,39 @@ ORDER BY table_name;`);
               )}
             </div>
             {queryResult && (
-              <button className="flex items-center gap-1 text-xs text-gray-600 hover:text-gray-800">
-                <Save className="w-3 h-3" />
-                Export
-              </button>
+              <div className="relative" ref={exportRef}>
+                <button
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  className="flex items-center gap-1 text-xs text-gray-600 hover:text-gray-800"
+                >
+                  <Save className="w-3 h-3" />
+                  Export
+                  <ChevronDown className="w-3 h-3" />
+                </button>
+
+                {showExportMenu && (
+                  <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50 min-w-[120px]">
+                    <button
+                      onClick={() => handleExportFormat("csv")}
+                      className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
+                    >
+                      Export as CSV
+                    </button>
+                    <button
+                      onClick={() => handleExportFormat("json")}
+                      className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
+                    >
+                      Export as JSON
+                    </button>
+                    <button
+                      onClick={() => handleExportFormat("xlsx")}
+                      className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
+                    >
+                      Export as XLSX
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
 

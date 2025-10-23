@@ -59,9 +59,6 @@ export class AIService {
    * Generate SQL query from natural language
    */
   static async generateQuery(userInput: string): Promise<AIQueryResult> {
-    console.log("Making AI request to:", `${this.baseUrl}/ai/generate-query`);
-    console.log("Request payload:", { userInput });
-
     const response = await fetch(`${this.baseUrl}/ai/generate-query`, {
       method: "POST",
       headers: {
@@ -69,9 +66,6 @@ export class AIService {
       },
       body: JSON.stringify({ userInput }),
     });
-
-    console.log("Response status:", response.status);
-    console.log("Response ok:", response.ok);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -82,7 +76,6 @@ export class AIService {
     }
 
     const result = await response.json();
-    console.log("Response data:", result);
     return result.data;
   }
 
