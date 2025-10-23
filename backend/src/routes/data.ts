@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { MultiDatabaseManager } from "../db/multiDatabaseManager";
+import { SequelizeDbManager } from "../db/sequelizeDbManager";
 import { LOCAL_DB_ID } from "../types/database";
 
 const router = Router();
@@ -54,7 +54,7 @@ router.post("/insert", async (req: Request, res: Response): Promise<void> => {
 
     // Test the connection
     try {
-      await MultiDatabaseManager.query("SELECT 1", [], databaseId);
+      await SequelizeDbManager.query("SELECT 1", [], databaseId);
     } catch (error) {
       res.status(400).json({
         success: false,
@@ -84,7 +84,7 @@ router.post("/insert", async (req: Request, res: Response): Promise<void> => {
 
       try {
         // Get table columns to validate and order data
-        const columnsResult = await MultiDatabaseManager.query(
+        const columnsResult = await SequelizeDbManager.query(
           `
           SELECT column_name, data_type, is_nullable, column_default
           FROM information_schema.columns
@@ -136,7 +136,7 @@ router.post("/insert", async (req: Request, res: Response): Promise<void> => {
               VALUES (${placeholders})
             `;
 
-            await MultiDatabaseManager.query(insertQuery, values, databaseId);
+            await SequelizeDbManager.query(insertQuery, values, databaseId);
             recordsInserted++;
             totalInserted++;
           } catch (error) {

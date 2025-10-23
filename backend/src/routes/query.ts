@@ -1,11 +1,12 @@
 import { Router, Request, Response } from "express";
-import { MultiDatabaseManager } from "../db/multiDatabaseManager";
+import { SequelizeDbManager } from "../db/sequelizeDbManager";
 
 const router = Router();
 
 interface QueryRequest {
   query: string;
   databaseId: string;
+  params?: any[]; // Add support for query parameters
 }
 
 interface QueryResult {
@@ -21,7 +22,7 @@ interface QueryResult {
  */
 router.post("/query", async (req: Request, res: Response) => {
   try {
-    const { query, databaseId } = req.body as QueryRequest;
+    const { query, databaseId, params } = req.body as QueryRequest;
 
     if (!query || !query.trim()) {
       return res.status(400).json({
@@ -39,10 +40,10 @@ router.post("/query", async (req: Request, res: Response) => {
 
     const startTime = Date.now();
 
-    // Execute the query
-    const result = await MultiDatabaseManager.query(
+    // Execute the query with optional parameters
+    const result = await SequelizeDbManager.query(
       query,
-      undefined,
+      params || [],
       databaseId
     );
 
@@ -50,9 +51,7 @@ router.post("/query", async (req: Request, res: Response) => {
 
     // Format the result for the frontend
     const queryResult: QueryResult = {
-      columns: result.fields
-        ? result.fields.map((field: any) => field.name)
-        : [],
+      columns: result.columns || [],
       rows: result.rows || [],
       rowCount: result.rowCount || 0,
       executionTime,

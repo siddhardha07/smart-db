@@ -1,13 +1,13 @@
 import request from "supertest";
 import express from "express";
 import dataRouter from "../src/routes/data";
-import { MultiDatabaseManager } from "../src/db/multiDatabaseManager";
+import { SequelizeDbManager } from "../src/db/sequelizeDbManager";
 import { LOCAL_DB_ID } from "../src/types/database";
 
-// Mock MultiDatabaseManager
-jest.mock("../src/db/multiDatabaseManager");
-const MockedMultiDatabaseManager = MultiDatabaseManager as jest.Mocked<
-  typeof MultiDatabaseManager
+// Mock SequelizeDbManager
+jest.mock("../src/db/sequelizeDbManager");
+const MockedSequelizeDbManager = SequelizeDbManager as jest.Mocked<
+  typeof SequelizeDbManager
 >;
 
 describe("Data Routes", () => {
@@ -65,19 +65,19 @@ describe("Data Routes", () => {
 
     test("successfully inserts data into valid tables", async () => {
       // Mock connection test
-      MockedMultiDatabaseManager.query.mockResolvedValueOnce({
+      MockedSequelizeDbManager.query.mockResolvedValueOnce({
         rows: [{ "?column?": 1 }],
       });
 
       // Mock table columns query for users
-      MockedMultiDatabaseManager.query.mockResolvedValueOnce(mockColumnsResult);
+      MockedSequelizeDbManager.query.mockResolvedValueOnce(mockColumnsResult);
 
       // Mock insert queries for users
-      MockedMultiDatabaseManager.query.mockResolvedValueOnce({ rows: [] }); // Insert user 1
-      MockedMultiDatabaseManager.query.mockResolvedValueOnce({ rows: [] }); // Insert user 2
+      MockedSequelizeDbManager.query.mockResolvedValueOnce({ rows: [] }); // Insert user 1
+      MockedSequelizeDbManager.query.mockResolvedValueOnce({ rows: [] }); // Insert user 2
 
       // Mock table columns query for products
-      MockedMultiDatabaseManager.query.mockResolvedValueOnce({
+      MockedSequelizeDbManager.query.mockResolvedValueOnce({
         rows: [
           {
             column_name: "id",
@@ -107,7 +107,7 @@ describe("Data Routes", () => {
       });
 
       // Mock insert query for product
-      MockedMultiDatabaseManager.query.mockResolvedValueOnce({ rows: [] });
+      MockedSequelizeDbManager.query.mockResolvedValueOnce({ rows: [] });
 
       const response = await request(app)
         .post("/api/data/insert")
@@ -127,7 +127,7 @@ describe("Data Routes", () => {
       });
 
       // Verify MultiDatabaseManager was called correctly
-      expect(MockedMultiDatabaseManager.query).toHaveBeenCalledWith(
+      expect(MockedSequelizeDbManager.query).toHaveBeenCalledWith(
         "SELECT 1",
         [],
         LOCAL_DB_ID
@@ -136,7 +136,7 @@ describe("Data Routes", () => {
 
     test("uses MultiDatabaseManager for database operations", async () => {
       // Mock successful connection test
-      MockedMultiDatabaseManager.query.mockResolvedValueOnce({
+      MockedSequelizeDbManager.query.mockResolvedValueOnce({
         rows: [{ "?column?": 1 }],
       });
 
@@ -144,7 +144,7 @@ describe("Data Routes", () => {
         .post("/api/data/insert")
         .send({ ...validRequest, data: {} });
 
-      expect(MockedMultiDatabaseManager.query).toHaveBeenCalledWith(
+      expect(MockedSequelizeDbManager.query).toHaveBeenCalledWith(
         "SELECT 1",
         [],
         LOCAL_DB_ID
@@ -200,7 +200,7 @@ describe("Data Routes", () => {
     });
 
     test("returns 400 when cannot connect to database", async () => {
-      MockedMultiDatabaseManager.query.mockRejectedValueOnce(
+      MockedSequelizeDbManager.query.mockRejectedValueOnce(
         new Error("Connection failed")
       );
 
@@ -216,7 +216,7 @@ describe("Data Routes", () => {
     });
 
     test("handles empty records array", async () => {
-      MockedMultiDatabaseManager.query.mockResolvedValueOnce({
+      MockedSequelizeDbManager.query.mockResolvedValueOnce({
         rows: [{ "?column?": 1 }],
       }); // Connection test
 
@@ -250,10 +250,10 @@ describe("Data Routes", () => {
     });
 
     test("handles non-existent table", async () => {
-      MockedMultiDatabaseManager.query.mockResolvedValueOnce({
+      MockedSequelizeDbManager.query.mockResolvedValueOnce({
         rows: [{ "?column?": 1 }],
       }); // Connection test
-      MockedMultiDatabaseManager.query.mockResolvedValueOnce({ rows: [] }); // Empty columns result
+      MockedSequelizeDbManager.query.mockResolvedValueOnce({ rows: [] }); // Empty columns result
 
       const response = await request(app)
         .post("/api/data/insert")
@@ -279,12 +279,12 @@ describe("Data Routes", () => {
     });
 
     test("handles insert errors for individual records", async () => {
-      MockedMultiDatabaseManager.query.mockResolvedValueOnce({
+      MockedSequelizeDbManager.query.mockResolvedValueOnce({
         rows: [{ "?column?": 1 }],
       }); // Connection test
-      MockedMultiDatabaseManager.query.mockResolvedValueOnce(mockColumnsResult); // Table columns
-      MockedMultiDatabaseManager.query.mockResolvedValueOnce({ rows: [] }); // First insert succeeds
-      MockedMultiDatabaseManager.query.mockRejectedValueOnce(
+      MockedSequelizeDbManager.query.mockResolvedValueOnce(mockColumnsResult); // Table columns
+      MockedSequelizeDbManager.query.mockResolvedValueOnce({ rows: [] }); // First insert succeeds
+      MockedSequelizeDbManager.query.mockRejectedValueOnce(
         new Error("Duplicate key value")
       ); // Second insert fails
 
@@ -315,10 +315,10 @@ describe("Data Routes", () => {
     });
 
     test("handles table query errors", async () => {
-      MockedMultiDatabaseManager.query.mockResolvedValueOnce({
+      MockedSequelizeDbManager.query.mockResolvedValueOnce({
         rows: [{ "?column?": 1 }],
       }); // Connection test
-      MockedMultiDatabaseManager.query.mockRejectedValueOnce(
+      MockedSequelizeDbManager.query.mockRejectedValueOnce(
         new Error("Table query failed")
       ); // Columns query fails
 
@@ -346,11 +346,11 @@ describe("Data Routes", () => {
     });
 
     test("handles non-Error exceptions in record insertion", async () => {
-      MockedMultiDatabaseManager.query.mockResolvedValueOnce({
+      MockedSequelizeDbManager.query.mockResolvedValueOnce({
         rows: [{ "?column?": 1 }],
       }); // Connection test
-      MockedMultiDatabaseManager.query.mockResolvedValueOnce(mockColumnsResult); // Table columns
-      MockedMultiDatabaseManager.query.mockRejectedValueOnce("String error"); // Insert fails with non-Error
+      MockedSequelizeDbManager.query.mockResolvedValueOnce(mockColumnsResult); // Table columns
+      MockedSequelizeDbManager.query.mockRejectedValueOnce("String error"); // Insert fails with non-Error
 
       const response = await request(app)
         .post("/api/data/insert")
@@ -376,10 +376,10 @@ describe("Data Routes", () => {
     });
 
     test("handles non-Error exceptions in table processing", async () => {
-      MockedMultiDatabaseManager.query.mockResolvedValueOnce({
+      MockedSequelizeDbManager.query.mockResolvedValueOnce({
         rows: [{ "?column?": 1 }],
       }); // Connection test
-      MockedMultiDatabaseManager.query.mockImplementationOnce(() => {
+      MockedSequelizeDbManager.query.mockImplementationOnce(() => {
         throw "String error";
       });
 
@@ -407,7 +407,7 @@ describe("Data Routes", () => {
     });
 
     test("handles unexpected server errors", async () => {
-      MockedMultiDatabaseManager.query.mockImplementationOnce(() => {
+      MockedSequelizeDbManager.query.mockImplementationOnce(() => {
         throw new Error("Unexpected error");
       });
 
@@ -423,7 +423,7 @@ describe("Data Routes", () => {
     });
 
     test("handles non-Error exceptions in server processing", async () => {
-      MockedMultiDatabaseManager.query.mockImplementationOnce(() => {
+      MockedSequelizeDbManager.query.mockImplementationOnce(() => {
         throw "String error";
       });
 
@@ -439,12 +439,12 @@ describe("Data Routes", () => {
     });
 
     test("properly handles null values in records", async () => {
-      MockedMultiDatabaseManager.query.mockResolvedValueOnce({
+      MockedSequelizeDbManager.query.mockResolvedValueOnce({
         rows: [{ "?column?": 1 }],
       }); // Connection test
-      MockedMultiDatabaseManager.query.mockResolvedValueOnce(mockColumnsResult); // Table columns
-      MockedMultiDatabaseManager.query.mockResolvedValueOnce({ rows: [] }); // Insert 1
-      MockedMultiDatabaseManager.query.mockResolvedValueOnce({ rows: [] }); // Insert 2
+      MockedSequelizeDbManager.query.mockResolvedValueOnce(mockColumnsResult); // Table columns
+      MockedSequelizeDbManager.query.mockResolvedValueOnce({ rows: [] }); // Insert 1
+      MockedSequelizeDbManager.query.mockResolvedValueOnce({ rows: [] }); // Insert 2
 
       const response = await request(app)
         .post("/api/data/insert")
@@ -463,7 +463,7 @@ describe("Data Routes", () => {
       expect(response.body.insertedRecords).toBe(2);
 
       // Verify the insert queries were called with correct parameters
-      const insertCalls = MockedMultiDatabaseManager.query.mock.calls.filter(
+      const insertCalls = MockedSequelizeDbManager.query.mock.calls.filter(
         (call: any) =>
           typeof call[0] === "string" && call[0].includes("INSERT INTO")
       );
@@ -474,11 +474,11 @@ describe("Data Routes", () => {
     });
 
     test("filters out auto-increment id columns", async () => {
-      MockedMultiDatabaseManager.query.mockResolvedValueOnce({
+      MockedSequelizeDbManager.query.mockResolvedValueOnce({
         rows: [{ "?column?": 1 }],
       }); // Connection test
-      MockedMultiDatabaseManager.query.mockResolvedValueOnce(mockColumnsResult); // Table columns (includes auto-increment id)
-      MockedMultiDatabaseManager.query.mockResolvedValueOnce({ rows: [] }); // Insert
+      MockedSequelizeDbManager.query.mockResolvedValueOnce(mockColumnsResult); // Table columns (includes auto-increment id)
+      MockedSequelizeDbManager.query.mockResolvedValueOnce({ rows: [] }); // Insert
 
       await request(app)
         .post("/api/data/insert")
@@ -490,7 +490,7 @@ describe("Data Routes", () => {
         });
 
       // Check that the insert query doesn't include the id column
-      const insertCall = MockedMultiDatabaseManager.query.mock.calls.find(
+      const insertCall = MockedSequelizeDbManager.query.mock.calls.find(
         (call: any) =>
           typeof call[0] === "string" && call[0].includes("INSERT INTO")
       );

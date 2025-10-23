@@ -5,6 +5,11 @@ import { AddDatabaseModal } from "./AddDatabaseModal";
 import InsertDataModal from "./InsertDataModal";
 import TableDataModal from "./TableDataModal";
 
+interface DatabaseExplorerProps {
+  selectedDatabases?: string[];
+  onDatabaseSelectionChange?: (selectedDatabases: string[]) => void;
+}
+
 interface TableInfo {
   tableName: string;
   columns: {
@@ -72,7 +77,10 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
   );
 };
 
-export const DatabaseExplorer: React.FC = () => {
+export const DatabaseExplorer: React.FC<DatabaseExplorerProps> = ({
+  selectedDatabases = [],
+  onDatabaseSelectionChange,
+}) => {
   const [databases, setDatabases] = useState<DatabaseInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -92,6 +100,37 @@ export const DatabaseExplorer: React.FC = () => {
     databaseId: string;
     databaseName: string;
   }>({ isOpen: false, x: 0, y: 0, databaseId: "", databaseName: "" });
+
+  // Remove auto-selection logic - let App.tsx handle initial selection
+  // useEffect(() => {
+  //   if (selectedDatabases.length === 0 && databases.length > 0 && onDatabaseSelectionChange) {
+  //     const localDb = databases.find(db => db.isLocal);
+  //     if (localDb) {
+  //       onDatabaseSelectionChange([localDb.id]);
+  //     }
+  //   }
+  // }, [databases, selectedDatabases.length, onDatabaseSelectionChange]);
+
+  const handleDatabaseToggle = (databaseId: string) => {
+    if (!onDatabaseSelectionChange) return;
+
+    const isSelected = selectedDatabases.includes(databaseId);
+    let newSelection: string[];
+
+    if (isSelected) {
+      // Remove from selection - but keep at least one selected
+      newSelection = selectedDatabases.filter((id) => id !== databaseId);
+      if (newSelection.length === 0) {
+        // Don't allow deselecting the last database
+        return;
+      }
+    } else {
+      // For now, allow only single database selection (replace current selection)
+      newSelection = [databaseId];
+    }
+
+    onDatabaseSelectionChange(newSelection);
+  };
 
   useEffect(() => {
     loadDatabases();
@@ -284,6 +323,17 @@ export const DatabaseExplorer: React.FC = () => {
                 <div key={db.id} className="space-y-1">
                   {/* Database Header */}
                   <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-white transition-colors group">
+                    {/* Selection Checkbox */}
+                    <div className="flex-shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={selectedDatabases.includes(db.id)}
+                        onChange={() => handleDatabaseToggle(db.id)}
+                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+
                     {/* Database Icon */}
                     <div className="flex-shrink-0">
                       <div

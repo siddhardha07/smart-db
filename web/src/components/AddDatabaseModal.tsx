@@ -28,15 +28,23 @@ export const AddDatabaseModal: React.FC<AddDatabaseModalProps> = ({
   });
 
   const testConnection = async () => {
-    if (
-      !newDb.host ||
-      !newDb.port ||
-      !newDb.database ||
-      !newDb.username ||
-      !newDb.password
-    ) {
-      setConnectionMessage("Please fill in all required fields");
-      return;
+    // Validation for different database types
+    if (newDb.type === "sqlite") {
+      if (!newDb.database) {
+        setConnectionMessage("Please provide the database file path");
+        return;
+      }
+    } else {
+      if (
+        !newDb.host ||
+        !newDb.port ||
+        !newDb.database ||
+        !newDb.username ||
+        !newDb.password
+      ) {
+        setConnectionMessage("Please fill in all required fields");
+        return;
+      }
     }
 
     setTestingConnection(true);
@@ -65,16 +73,19 @@ export const AddDatabaseModal: React.FC<AddDatabaseModalProps> = ({
   };
 
   const handleAddDatabase = async () => {
-    if (
-      !newDb.name ||
-      !newDb.host ||
-      !newDb.port ||
-      !newDb.database ||
-      !newDb.username ||
-      !newDb.password
-    ) {
-      setConnectionMessage("Please fill in all required fields");
+    // Validation for different database types
+    if (!newDb.name || !newDb.database) {
+      setConnectionMessage("Please provide database name and database field");
       return;
+    }
+
+    if (newDb.type === "sqlite") {
+      // For SQLite, only need name and database file path
+    } else {
+      if (!newDb.host || !newDb.port || !newDb.username || !newDb.password) {
+        setConnectionMessage("Please fill in all required fields");
+        return;
+      }
     }
 
     setLoading(true);
@@ -82,14 +93,18 @@ export const AddDatabaseModal: React.FC<AddDatabaseModalProps> = ({
 
     const credentials: DatabaseCredentials = {
       id,
-      name: newDb.name,
-      type: newDb.type as "postgresql",
-      host: newDb.host,
-      port: newDb.port,
-      database: newDb.database,
-      username: newDb.username,
-      password: newDb.password,
+      name: newDb.name!,
+      type: newDb.type!,
+      database: newDb.database!,
       isLocal: false,
+      ...(newDb.type === "sqlite"
+        ? {}
+        : {
+            host: newDb.host!,
+            port: newDb.port!,
+            username: newDb.username!,
+            password: newDb.password!,
+          }),
     };
 
     try {
@@ -185,82 +200,113 @@ export const AddDatabaseModal: React.FC<AddDatabaseModalProps> = ({
             </label>
             <select
               value={newDb.type}
-              onChange={(e) =>
-                setNewDb({ ...newDb, type: e.target.value as "postgresql" })
-              }
+              onChange={(e) => {
+                const type = e.target.value as
+                  | "postgresql"
+                  | "mysql"
+                  | "sqlite";
+                setNewDb({
+                  ...newDb,
+                  type,
+                  port:
+                    type === "mysql"
+                      ? 3306
+                      : type === "postgresql"
+                      ? 5432
+                      : undefined,
+                });
+              }}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="postgresql">PostgreSQL</option>
+              <option value="mysql">MySQL</option>
+              <option value="sqlite">SQLite</option>
             </select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Host
-              </label>
-              <input
-                type="text"
-                value={newDb.host || ""}
-                onChange={(e) => setNewDb({ ...newDb, host: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="localhost"
-              />
+          {newDb.type !== "sqlite" && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Host
+                </label>
+                <input
+                  type="text"
+                  value={newDb.host || ""}
+                  onChange={(e) => setNewDb({ ...newDb, host: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="localhost"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Port
+                </label>
+                <input
+                  type="number"
+                  value={newDb.port || ""}
+                  onChange={(e) =>
+                    setNewDb({ ...newDb, port: parseInt(e.target.value) })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder={newDb.type === "mysql" ? "3306" : "5432"}
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Port
-              </label>
-              <input
-                type="number"
-                value={newDb.port || ""}
-                onChange={(e) =>
-                  setNewDb({ ...newDb, port: parseInt(e.target.value) })
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="5432"
-              />
-            </div>
-          </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Database Name
+              {newDb.type === "sqlite" ? "Database File Path" : "Database Name"}
             </label>
             <input
               type="text"
               value={newDb.database || ""}
               onChange={(e) => setNewDb({ ...newDb, database: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="myapp"
+              placeholder={
+                newDb.type === "sqlite"
+                  ? "/path/to/database.db"
+                  : newDb.type === "mysql"
+                  ? "myapp"
+                  : "myapp"
+              }
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Username
-            </label>
-            <input
-              type="text"
-              value={newDb.username || ""}
-              onChange={(e) => setNewDb({ ...newDb, username: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="postgres"
-            />
-          </div>
+          {newDb.type !== "sqlite" && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Username
+                </label>
+                <input
+                  type="text"
+                  value={newDb.username || ""}
+                  onChange={(e) =>
+                    setNewDb({ ...newDb, username: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder={newDb.type === "mysql" ? "root" : "postgres"}
+                />
+              </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Password
-            </label>
-            <input
-              type="password"
-              value={newDb.password || ""}
-              onChange={(e) => setNewDb({ ...newDb, password: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="password"
-            />
-          </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  value={newDb.password || ""}
+                  onChange={(e) =>
+                    setNewDb({ ...newDb, password: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="password"
+                />
+              </div>
+            </>
+          )}
 
           {/* Connection Message */}
           {connectionMessage && (

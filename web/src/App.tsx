@@ -20,9 +20,15 @@ interface ChatMessage {
 
 function App() {
   const [mode, setMode] = useState<AppMode>("home");
-  const [selectedDatabase] = useState<string>(LOCAL_DB_ID);
+  const [selectedDatabases, setSelectedDatabases] = useState<string[]>([
+    LOCAL_DB_ID,
+  ]);
   const [pendingQuery, setPendingQuery] = useState<string | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+
+  const handleDatabaseSelectionChange = (databases: string[]) => {
+    setSelectedDatabases(databases);
+  };
 
   const handleAIMode = () => {
     setMode("ai");
@@ -54,7 +60,10 @@ function App() {
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
         {/* Database Explorer Sidebar */}
-        <DatabaseExplorer />
+        <DatabaseExplorer
+          selectedDatabases={selectedDatabases}
+          onDatabaseSelectionChange={handleDatabaseSelectionChange}
+        />
 
         {/* Page Content */}
         <main className="flex-1 flex flex-col overflow-hidden">
@@ -64,7 +73,7 @@ function App() {
           {mode === "ai" && (
             <AIMode
               onBack={handleBackToHome}
-              selectedDatabase={selectedDatabase}
+              selectedDatabases={selectedDatabases}
               onNavigateToDBMode={handleNavigateToDBMode}
               chatMessages={chatMessages}
               setChatMessages={setChatMessages}
@@ -73,7 +82,7 @@ function App() {
           {mode === "db" && (
             <DBMode
               onBack={handleBackToHome}
-              selectedDatabase={selectedDatabase}
+              selectedDatabases={selectedDatabases}
               initialQuery={pendingQuery}
               onNavigateToAIMode={handleAIMode}
             />

@@ -2,7 +2,7 @@ import express, { Application, Request, Response } from "express";
 import cors from "cors";
 import * as dotenv from "dotenv";
 import { DatabaseConnection } from "./db/dbConnection";
-import { MultiDatabaseManager } from "./db/multiDatabaseManager";
+import { SequelizeDbManager } from "./db/sequelizeDbManager";
 import schemaRoutes from "./routes/schema";
 import dataRoutes from "./routes/data";
 import databaseRoutes from "./routes/database-management";
@@ -125,19 +125,19 @@ class App {
       DatabaseConnection.initialize();
 
       // Initialize the new multi-database manager with local DB
-      MultiDatabaseManager.initializeLocalDatabase();
+      SequelizeDbManager.initializeLocalDatabase();
 
       // Test both connections
       const legacyConnected = await DatabaseConnection.testConnection();
       const localDbAvailable =
-        MultiDatabaseManager.getAvailableDatabases().length > 0;
+        SequelizeDbManager.getAvailableDatabases().length > 0;
 
       if (legacyConnected && localDbAvailable) {
         // eslint-disable-next-line no-console
         console.log("✅ Database connections established successfully");
         // eslint-disable-next-line no-console
         console.log(
-          `📊 Available databases: ${MultiDatabaseManager.getAvailableDatabases()
+          `📊 Available databases: ${SequelizeDbManager.getAvailableDatabases()
             .map((db) => db.credentials.name)
             .join(", ")}`
         );
@@ -177,7 +177,7 @@ class App {
 
     try {
       await DatabaseConnection.close();
-      await MultiDatabaseManager.closeAllConnections();
+      await SequelizeDbManager.closeAllConnections();
       // eslint-disable-next-line no-console
       console.log("✅ Database connections closed");
     } catch (error) {

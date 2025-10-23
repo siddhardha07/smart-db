@@ -2,11 +2,11 @@ export interface DatabaseCredentials {
   id: string;
   name: string;
   type: "postgresql" | "mysql" | "sqlite";
-  host: string;
-  port: number;
+  host?: string; // Optional for SQLite
+  port?: number; // Optional for SQLite
   database: string;
-  username: string;
-  password: string;
+  username?: string; // Optional for SQLite
+  password?: string; // Optional for SQLite
   isLocal?: boolean;
 }
 

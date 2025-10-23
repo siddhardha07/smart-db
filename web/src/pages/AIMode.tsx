@@ -15,7 +15,7 @@ interface ChatMessage {
 
 interface AIModeProps {
   onBack: () => void;
-  selectedDatabase: string;
+  selectedDatabases: string[];
   onNavigateToDBMode: (query: string) => void;
   chatMessages: ChatMessage[];
   setChatMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
@@ -23,7 +23,7 @@ interface AIModeProps {
 
 export default function AIMode({
   onBack,
-  selectedDatabase,
+  selectedDatabases,
   onNavigateToDBMode,
   chatMessages,
   setChatMessages,
@@ -51,7 +51,10 @@ export default function AIMode({
             <div>
               <h1 className="text-xl font-bold text-gray-900">AI Mode</h1>
               <p className="text-sm text-gray-500">
-                Connected to: {selectedDatabase}
+                Connected to:{" "}
+                {selectedDatabases.length === 1
+                  ? selectedDatabases[0]
+                  : `${selectedDatabases.length} databases`}
               </p>
             </div>
           </div>

@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { MultiDatabaseManager } from "../db/multiDatabaseManager";
+import { SequelizeDbManager } from "../db/sequelizeDbManager";
 import { DatabaseCredentials } from "../types/database";
 
 const router = Router();
@@ -9,7 +9,7 @@ const router = Router();
  */
 router.get("/databases", async (req: Request, res: Response) => {
   try {
-    const databases = MultiDatabaseManager.getAvailableDatabases();
+    const databases = SequelizeDbManager.getAvailableDatabases();
     res.json({
       success: true,
       databases: databases.map((db) => ({
@@ -39,21 +39,31 @@ router.post("/databases/test", async (req: Request, res: Response) => {
   try {
     const credentials: DatabaseCredentials = req.body;
 
-    // Basic validation
-    if (
-      !credentials.host ||
-      !credentials.port ||
-      !credentials.database ||
-      !credentials.username ||
-      !credentials.password
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Missing required connection parameters",
-      });
+    // Basic validation based on database type
+    if (credentials.type === "sqlite") {
+      if (!credentials.database) {
+        return res.status(400).json({
+          success: false,
+          message: "Missing database file path for SQLite",
+        });
+      }
+    } else {
+      // PostgreSQL and MySQL validation
+      if (
+        !credentials.host ||
+        !credentials.port ||
+        !credentials.database ||
+        !credentials.username ||
+        !credentials.password
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Missing required connection parameters",
+        });
+      }
     }
 
-    const result = await MultiDatabaseManager.testConnection(credentials);
+    const result = await SequelizeDbManager.testConnection(credentials);
 
     if (result.success) {
       res.json(result);
@@ -76,24 +86,34 @@ router.post("/databases", async (req: Request, res: Response) => {
   try {
     const credentials: DatabaseCredentials = req.body;
 
-    // Basic validation
-    if (
-      !credentials.id ||
-      !credentials.name ||
-      !credentials.host ||
-      !credentials.port ||
-      !credentials.database ||
-      !credentials.username ||
-      !credentials.password
-    ) {
+    // Basic validation based on database type
+    if (!credentials.id || !credentials.name || !credentials.database) {
       return res.status(400).json({
         success: false,
-        message: "Missing required connection parameters",
+        message: "Missing required parameters: id, name, and database",
       });
     }
 
+    if (credentials.type === "sqlite") {
+      // SQLite only needs id, name, and database file path
+    } else {
+      // PostgreSQL and MySQL validation
+      if (
+        !credentials.host ||
+        !credentials.port ||
+        !credentials.username ||
+        !credentials.password
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Missing required connection parameters for PostgreSQL/MySQL",
+        });
+      }
+    }
+
     // Check if connection ID already exists
-    const existingDatabases = MultiDatabaseManager.getAvailableDatabases();
+    const existingDatabases = SequelizeDbManager.getAvailableDatabases();
     if (existingDatabases.some((db) => db.id === credentials.id)) {
       return res.status(400).json({
         success: false,
@@ -101,7 +121,7 @@ router.post("/databases", async (req: Request, res: Response) => {
       });
     }
 
-    const result = await MultiDatabaseManager.addConnection(credentials);
+    const result = await SequelizeDbManager.addConnection(credentials);
 
     if (result.success) {
       res.status(201).json(result);
@@ -131,7 +151,7 @@ router.delete("/databases/:id", async (req: Request, res: Response) => {
       });
     }
 
-    const success = await MultiDatabaseManager.removeConnection(id);
+    const success = await SequelizeDbManager.removeConnection(id);
 
     if (success) {
       res.json({
@@ -163,34 +183,15 @@ router.get("/databases/:id/schema", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    // Get all tables in the database
-    const tablesResult = await MultiDatabaseManager.query(
-      `SELECT table_name, table_schema
-       FROM information_schema.tables
-       WHERE table_schema = 'public'
-       ORDER BY table_name`,
-      [],
-      id
-    );
-
-    const schema = [];
-
-    for (const table of tablesResult.rows) {
-      // Get columns for each table
-      const columnsResult = await MultiDatabaseManager.query(
-        `SELECT column_name, data_type, is_nullable, column_default
-         FROM information_schema.columns
-         WHERE table_schema = 'public' AND table_name = $1
-         ORDER BY ordinal_position`,
-        [table.table_name],
-        id
-      );
-
-      schema.push({
-        tableName: table.table_name,
-        columns: columnsResult.rows,
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Database ID is required",
       });
     }
+
+    // Use Sequelize's built-in schema introspection
+    const schema = await SequelizeDbManager.getDatabaseSchema(id);
 
     res.json({
       success: true,
@@ -215,10 +216,10 @@ router.get(
       const { id, tableName } = req.params;
 
       // Validate required parameters
-      if (!tableName) {
+      if (!id || !tableName) {
         return res.status(400).json({
           success: false,
-          message: "Table name is required",
+          message: "Database ID and table name are required",
         });
       }
 
@@ -231,20 +232,14 @@ router.get(
       }
 
       // WARNING: No limit applied - could cause memory issues with large tables
-      // Get all data from the table
-      const result = await MultiDatabaseManager.query(
-        `SELECT * FROM "${tableName}"`,
-        [],
-        id
-      );
+      // Get all data from the table using Sequelize's universal ORM approach
+      const result = await SequelizeDbManager.getTableData(id, tableName);
 
       res.json({
         success: true,
         data: {
           tableName,
-          columns: result.fields
-            ? result.fields.map((field: any) => field.name)
-            : [],
+          columns: result.columns || [],
           rows: result.rows || [],
           rowCount: result.rowCount || 0,
           totalRows: result.rowCount || 0,

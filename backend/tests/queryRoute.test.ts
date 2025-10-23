@@ -1,16 +1,16 @@
 import request from "supertest";
 import express, { Express } from "express";
 import router from "../src/routes/query"; // adjust path as needed
-import { MultiDatabaseManager } from "../src/db/multiDatabaseManager";
+import { SequelizeDbManager } from "../src/db/sequelizeDbManager";
 
-// 🧠 Mock MultiDatabaseManager
-jest.mock("../src/db/multiDatabaseManager", () => ({
-  MultiDatabaseManager: {
+// 🧠 Mock SequelizeDbManager
+jest.mock("../src/db/sequelizeDbManager", () => ({
+  SequelizeDbManager: {
     query: jest.fn(),
   },
 }));
 
-const mockQuery = MultiDatabaseManager.query as jest.Mock;
+const mockQuery = SequelizeDbManager.query as jest.Mock;
 
 let app: Express;
 beforeAll(() => {

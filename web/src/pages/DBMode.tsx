@@ -13,14 +13,14 @@ import {
   Brain,
   ChevronDown,
 } from "lucide-react";
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import Editor from "@monaco-editor/react";
 import type { editor } from "monaco-editor";
 import * as monaco from "monaco-editor";
 
 interface DBModeProps {
   onBack: () => void;
-  selectedDatabase: string;
+  selectedDatabases: string[];
   initialQuery?: string | null;
   onNavigateToAIMode?: () => void;
 }
@@ -34,10 +34,13 @@ interface QueryResult {
 
 export default function DBMode({
   onBack,
-  selectedDatabase,
+  selectedDatabases,
   initialQuery,
   onNavigateToAIMode,
 }: DBModeProps) {
+  // Create a ref to always have the latest selectedDatabases value
+  const selectedDatabasesRef = useRef(selectedDatabases);
+  selectedDatabasesRef.current = selectedDatabases;
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
 
   // SQL formatter function (same as SQLQueryDisplay component)
@@ -88,7 +91,7 @@ SELECT 'Hello, SmartDB AI!' as welcome_message;
   const [showExportMenu, setShowExportMenu] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
 
-  const executeQuery = useCallback(async () => {
+  const executeQuery = async () => {
     let queryToExecute = sqlQuery.trim();
 
     // If there's selected text in the editor, execute only the selection
@@ -113,7 +116,7 @@ SELECT 'Hello, SmartDB AI!' as welcome_message;
         },
         body: JSON.stringify({
           query: queryToExecute,
-          databaseId: selectedDatabase,
+          databaseId: selectedDatabasesRef.current[0] || "", // Use ref to get latest value
         }),
       });
 
@@ -124,18 +127,18 @@ SELECT 'Hello, SmartDB AI!' as welcome_message;
       } else {
         setError(data.message || "Query execution failed");
       }
-    } catch {
-      // For demo purposes, show a mock result
-      setQueryResult({
-        columns: ["welcome_message"],
-        rows: [{ welcome_message: "Hello, SmartDB AI!" }],
-        rowCount: 1,
-        executionTime: "0.2ms",
-      });
+    } catch (error) {
+      console.error("Query execution failed:", error);
+      setError(
+        `Connection failed: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+      setQueryResult(null);
     } finally {
       setIsLoading(false);
     }
-  }, [sqlQuery, selectedDatabase]);
+  };
 
   // Handle Ctrl+R shortcut
   useEffect(() => {
@@ -430,7 +433,10 @@ ORDER BY table_name;`);
                 Database Console
               </h1>
               <p className="text-sm text-gray-500">
-                Connected to: {selectedDatabase}
+                Connected to:{" "}
+                {selectedDatabases.length === 1
+                  ? selectedDatabases[0]
+                  : `${selectedDatabases.length} databases`}
               </p>
             </div>
           </div>
