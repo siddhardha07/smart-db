@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { AISchemaContext, AITableInfo } from "./aiSchemaAnalyzer";
+import { AISchemaContext } from "./aiSchemaAnalyzer";
 import { QueryGenerationResult } from "../types/ai";
 
 /**

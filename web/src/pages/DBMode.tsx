@@ -151,18 +151,22 @@ SELECT 'Hello, SmartDB AI!' as welcome_message;
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [executeQuery]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-execute query when coming from AI mode
+  // Set initial query in editor when coming from AI mode (without auto-execution)
   useEffect(() => {
     if (initialQuery) {
-      // Small delay to ensure editor is loaded
+      // Just populate the editor, don't auto-execute
+      setSqlQuery(initialQuery);
+      // Focus the editor after a small delay
       const timer = setTimeout(() => {
-        executeQuery();
-      }, 500);
+        if (editorRef.current) {
+          editorRef.current.focus();
+        }
+      }, 100);
       return () => clearTimeout(timer);
     }
-  }, [initialQuery, executeQuery]);
+  }, [initialQuery]);
 
   const clearEditor = () => {
     setSqlQuery("-- New query\n");
